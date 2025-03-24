@@ -1,0 +1,14 @@
+[project]
+name = "discovery_inference_sdk"
+dynamic = ["version"]
+dependencies = [
+    "httpx",
+    "isodate",
+    "multimethod"
+]
+
+[project.optional-dependencies]
+dev = [
+    "mockito",
+    "pytest"
+]
