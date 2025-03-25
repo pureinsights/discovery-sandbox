@@ -12,10 +12,8 @@
 """Entity class definitions for the Inference SDK."""
 
 import json
-from datetime import timedelta
 
 import httpx
-import isodate
 from multimethod import multimethod
 
 
@@ -101,15 +99,13 @@ class QueryFlowClient:
         self.api_key = api_key
 
     @multimethod
-    def text_to_text(
-        self, processor: Processor, input: dict, timeout: timedelta = None
-    ):
+    def text_to_text(self, processor: Processor, input: dict, timeout: str = None):
         """Execute a processor with the given input.
 
         Args:
             processor (Processor): The processor to execute.
             input (dict): The input to send to the processor.
-            timeout (timedelta): The timeout parameter for the request.
+            timeout (str): The timeout parameter for the request, in ISO 8601 format.
 
         Returns:
             dict: The response data from the request.
@@ -124,11 +120,7 @@ class QueryFlowClient:
 
         response = httpx.post(
             url=self.url + "/v2/inference/",
-            params=(
-                {"timeout": isodate.duration_isoformat(timeout)}
-                if timeout is not None
-                else {}
-            ),
+            params={"timeout": timeout} if timeout is not None else {},
             content=request_data,
             headers={"x-api-key": self.api_key, "Content-Type": "application/json"},
             timeout=None,
@@ -136,24 +128,20 @@ class QueryFlowClient:
         return response.json()
 
     @multimethod
-    def text_to_text(self, processor_id: str, input: dict, timeout: timedelta = None):
+    def text_to_text(self, processor_id: str, input: dict, timeout: str = None):
         """Execute a processor by ID with the given input.
 
         Args:
             processor_id (str): The UUID of the processor to execute.
             input (dict): The input to send to the processor.
-            timeout (timedelta): The timeout parameter for the request.
+            timeout (str): The timeout parameter for the request, in ISO 8601 format.
 
         Returns:
             dict: The response data from the request.
         """
         response = httpx.post(
             url=self.url + "/v2/inference/" + processor_id,
-            params=(
-                {"timeout": isodate.duration_isoformat(timeout)}
-                if timeout is not None
-                else {}
-            ),
+            params={"timeout": timeout} if timeout is not None else {},
             json=input,
             headers={"x-api-key": self.api_key},
             timeout=None,
