@@ -36,13 +36,29 @@ class TestQueryFlowClient:
 
     def test_text_to_text_processor(self, queryflow_client):
         """Test the text_to_text method with a new Processor entity."""
+        credential_type = "".join(random.choices(string.ascii_letters, k=5))
+        credential_secret = {
+            "".join(random.choices(string.ascii_letters, k=5)): "".join(
+                random.choices(string.ascii_letters, k=5)
+            )
+        }
+        credential = Credential(credential_type, credential_secret)
+
+        server_type = "".join(random.choices(string.ascii_letters, k=5))
+        server_config = {
+            "".join(random.choices(string.ascii_letters, k=5)): "".join(
+                random.choices(string.ascii_letters, k=5)
+            )
+        }
+        server = Server(server_type, server_config, credential)
+
         processor_type = "".join(random.choices(string.ascii_letters, k=5))
         processor_config = {
             "".join(random.choices(string.ascii_letters, k=5)): "".join(
                 random.choices(string.ascii_letters, k=5)
             )
         }
-        processor = Processor(processor_type, processor_config)
+        processor = Processor(processor_type, processor_config, server)
 
         request_input = {
             "".join(random.choices(string.ascii_letters, k=5)): "".join(
