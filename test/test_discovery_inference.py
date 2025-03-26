@@ -76,7 +76,7 @@ class TestQueryFlowClient:
         }
 
         when(httpx).post(
-            url=queryflow_client.url + "/v2/inference/",
+            url=queryflow_client.url + queryflow_client.INFERENCE_PATH,
             params={},
             content=request_data,
             headers={
@@ -105,7 +105,7 @@ class TestQueryFlowClient:
         }
 
         when(httpx).post(
-            url=queryflow_client.url + "/v2/inference/" + processor_id,
+            url=queryflow_client.url + queryflow_client.INFERENCE_PATH + processor_id,
             params={},
             json=request_input,
             headers={"x-api-key": queryflow_client.api_key},

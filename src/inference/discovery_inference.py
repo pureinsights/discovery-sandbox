@@ -86,7 +86,10 @@ class QueryFlowClient:
     Attributes:
         url (str): The base url for the request.
         api_key (str): The api key to use in the request.
+        INFERENCE_PATH (str): The api path to use in the request.
     """
+
+    INFERENCE_PATH = "/v2/inference/"
 
     def __init__(self, url: str, api_key: str):
         """Initialize the client with url and api key.
@@ -119,7 +122,7 @@ class QueryFlowClient:
         )
 
         response = httpx.post(
-            url=self.url + "/v2/inference/",
+            url=self.url + self.INFERENCE_PATH,
             params={"timeout": timeout} if timeout is not None else {},
             content=request_data,
             headers={"x-api-key": self.api_key, "Content-Type": "application/json"},
@@ -140,7 +143,7 @@ class QueryFlowClient:
             dict: The response data from the request.
         """
         response = httpx.post(
-            url=self.url + "/v2/inference/" + processor_id,
+            url=self.url + self.INFERENCE_PATH + processor_id,
             params={"timeout": timeout} if timeout is not None else {},
             json=input,
             headers={"x-api-key": self.api_key},
