@@ -19,7 +19,7 @@ import uuid
 import httpx
 import pytest
 from httpx import Response
-from mockito import unstub, when
+from mockito import unstub, when, mock
 
 from inference.discovery_inference import *
 
@@ -114,4 +114,102 @@ class TestQueryFlowClient:
 
         result = queryflow_client.text_to_text(processor_id, request_input)
         assert result == response_data
+        unstub()
+
+    def test_text_to_stream_processor(self, queryflow_client):
+        """Test the text_to_stream method with a new Processor entity."""
+        credential_type = "".join(random.choices(string.ascii_letters, k=5))
+        credential_secret = {
+            "".join(random.choices(string.ascii_letters, k=5)): "".join(
+                random.choices(string.ascii_letters, k=5)
+            )
+        }
+        credential = Credential(credential_type, credential_secret)
+
+        server_type = "".join(random.choices(string.ascii_letters, k=5))
+        server_config = {
+            "".join(random.choices(string.ascii_letters, k=5)): "".join(
+                random.choices(string.ascii_letters, k=5)
+            )
+        }
+        server = Server(server_type, server_config, credential)
+
+        processor_type = "".join(random.choices(string.ascii_letters, k=5))
+        processor_config = {
+            "".join(random.choices(string.ascii_letters, k=5)): "".join(
+                random.choices(string.ascii_letters, k=5)
+            )
+        }
+        processor = Processor(processor_type, processor_config, server)
+
+        request_input = {
+            "".join(random.choices(string.ascii_letters, k=5)): "".join(
+                random.choices(string.ascii_letters, k=5)
+            )
+        }
+        request_data = json.dumps(
+            {"processor": processor, "input": request_input},
+            default=vars,
+        )
+
+        stream_iterator = [
+            "".join(random.choices(string.ascii_letters, k=5)) for i in range(5)
+        ]
+
+        response = mock(Response)
+        stream_mock = mock()
+
+        when(response).iter_text().thenReturn(stream_iterator)
+        when(stream_mock).__enter__().thenReturn(response)
+        when(stream_mock).__exit__().thenReturn()
+        when(httpx).stream(
+            "POST",
+            url=queryflow_client.url + queryflow_client.INFERENCE_PATH,
+            params={},
+            content=request_data,
+            headers={
+                "x-api-key": queryflow_client.api_key,
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+            timeout=None,
+        ).thenReturn(stream_mock)
+
+        result = queryflow_client.text_to_stream(processor, request_input)
+        assert stream_iterator == [chunk for chunk in result]
+        unstub()
+
+    def test_text_to_stream_uuid(self, queryflow_client):
+        """Test the text_to_stream method with the uuid of an existing Processor."""
+        processor_id = str(uuid.uuid4())
+        request_input = {
+            "".join(random.choices(string.ascii_letters, k=5)): "".join(
+                random.choices(string.ascii_letters, k=5)
+            )
+        }
+
+        stream_iterator = [
+            "".join(random.choices(string.ascii_letters, k=5)) for i in range(5)
+        ]
+
+        response = mock(Response)
+        stream_mock = mock()
+
+        when(response).iter_text().thenReturn(stream_iterator)
+        when(stream_mock).__enter__().thenReturn(response)
+        when(stream_mock).__exit__().thenReturn()
+        when(httpx).stream(
+            "POST",
+            url=queryflow_client.url + queryflow_client.INFERENCE_PATH + processor_id,
+            params={},
+            json=request_input,
+            headers={
+                "x-api-key": queryflow_client.api_key,
+                "Accept": "text/event-stream",
+            },
+            timeout=None,
+        ).thenReturn(stream_mock)
+
+        result = queryflow_client.text_to_stream(processor_id, request_input)
+        assert stream_iterator == [chunk for chunk in result]
         unstub()

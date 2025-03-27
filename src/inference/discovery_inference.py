@@ -150,3 +150,61 @@ class QueryFlowClient:
             timeout=None,
         )
         return response.json()
+
+    @multimethod
+    def text_to_stream(self, processor: Processor, input: dict, timeout: str = None):
+        """Execute a processor with the given input.
+
+        Args:
+            processor (Processor): The processor to execute.
+            input (dict): The input to send to the processor.
+            timeout (str): The timeout parameter for the request, in ISO 8601 format.
+
+        Yields:
+            str: A chunk of the response body as decoded text.
+        """
+        request_data = json.dumps(
+            {
+                "processor": processor,
+                "input": input,
+            },
+            default=vars,
+        )
+
+        with httpx.stream(
+            "POST",
+            url=self.url + self.INFERENCE_PATH,
+            params={"timeout": timeout} if timeout is not None else {},
+            content=request_data,
+            headers={
+                "x-api-key": self.api_key,
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+            timeout=None,
+        ) as response:
+            for chunk in response.iter_text():
+                yield chunk
+
+    @multimethod
+    def text_to_stream(self, processor_id: str, input: dict, timeout: str = None):
+        """Execute a processor by ID with the given input.
+
+        Args:
+            processor_id (str): The UUID of the processor to execute.
+            input (dict): The input to send to the processor.
+            timeout (str): The timeout parameter for the request, in ISO 8601 format.
+
+        Yields:
+            str: A chunk of the response body as decoded text.
+        """
+        with httpx.stream(
+            "POST",
+            url=self.url + self.INFERENCE_PATH + processor_id,
+            params={"timeout": timeout} if timeout is not None else {},
+            json=input,
+            headers={"x-api-key": self.api_key, "Accept": "text/event-stream"},
+            timeout=None,
+        ) as response:
+            for chunk in response.iter_text():
+                yield chunk
