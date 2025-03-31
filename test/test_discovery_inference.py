@@ -18,8 +18,10 @@ import uuid
 
 import httpx
 import pytest
+import sseclient
 from httpx import Response
-from mockito import unstub, when, mock
+from mockito import mock, unstub, when
+from sseclient import Event, SSEClient
 
 from inference.discovery_inference import *
 
@@ -151,15 +153,17 @@ class TestQueryFlowClient:
             {"processor": processor, "input": request_input},
             default=vars,
         )
-
-        stream_iterator = [
+        event_data = [
             "".join(random.choices(string.ascii_letters, k=5)) for i in range(5)
         ]
+        event_stream = [Event(data=data) for data in event_data]
 
-        response = mock(Response)
+        byte_iterator = mock()
         stream_mock = mock()
+        response = mock(Response)
+        sse_client = mock(SSEClient)
 
-        when(response).iter_text().thenReturn(stream_iterator)
+        when(response).iter_bytes().thenReturn(byte_iterator)
         when(stream_mock).__enter__().thenReturn(response)
         when(stream_mock).__exit__().thenReturn()
         when(httpx).stream(
@@ -174,9 +178,11 @@ class TestQueryFlowClient:
             },
             timeout=None,
         ).thenReturn(stream_mock)
+        when(sseclient).SSEClient(byte_iterator).thenReturn(sse_client)
+        when(sse_client).events().thenReturn(event_stream)
 
         result = queryflow_client.text_to_stream(processor, request_input)
-        assert stream_iterator == [chunk for chunk in result]
+        assert event_data == [chunk for chunk in result]
         unstub()
 
     def test_text_to_stream_uuid(self, queryflow_client):
@@ -187,15 +193,17 @@ class TestQueryFlowClient:
                 random.choices(string.ascii_letters, k=5)
             )
         }
-
-        stream_iterator = [
+        event_data = [
             "".join(random.choices(string.ascii_letters, k=5)) for i in range(5)
         ]
+        event_stream = [Event(data=data) for data in event_data]
 
-        response = mock(Response)
+        byte_iterator = mock()
         stream_mock = mock()
+        response = mock(Response)
+        sse_client = mock(SSEClient)
 
-        when(response).iter_text().thenReturn(stream_iterator)
+        when(response).iter_bytes().thenReturn(byte_iterator)
         when(stream_mock).__enter__().thenReturn(response)
         when(stream_mock).__exit__().thenReturn()
         when(httpx).stream(
@@ -209,7 +217,9 @@ class TestQueryFlowClient:
             },
             timeout=None,
         ).thenReturn(stream_mock)
+        when(sseclient).SSEClient(byte_iterator).thenReturn(sse_client)
+        when(sse_client).events().thenReturn(event_stream)
 
         result = queryflow_client.text_to_stream(processor_id, request_input)
-        assert stream_iterator == [chunk for chunk in result]
+        assert event_data == [chunk for chunk in result]
         unstub()

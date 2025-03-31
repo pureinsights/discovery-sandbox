@@ -14,7 +14,8 @@ name = "discovery_inference"
 dynamic = ["version"]
 dependencies = [
     "httpx",
-    "multimethod"
+    "multimethod",
+    "sseclient-py"
 ]
 
 [project.optional-dependencies]

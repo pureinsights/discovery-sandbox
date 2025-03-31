@@ -14,6 +14,7 @@
 import json
 
 import httpx
+import sseclient
 from multimethod import multimethod
 
 
@@ -161,7 +162,7 @@ class QueryFlowClient:
             timeout (str): The timeout parameter for the request, in ISO 8601 format.
 
         Yields:
-            str: A chunk of the response body as decoded text.
+            str: Each response chunk's data field as decoded text.
         """
         request_data = json.dumps(
             {
@@ -183,8 +184,9 @@ class QueryFlowClient:
             },
             timeout=None,
         ) as response:
-            for chunk in response.iter_text():
-                yield chunk
+            client = sseclient.SSEClient(response.iter_bytes())
+            for event in client.events():
+                yield event.data
 
     @multimethod
     def text_to_stream(self, processor_id: str, input: dict, timeout: str = None):
@@ -196,7 +198,7 @@ class QueryFlowClient:
             timeout (str): The timeout parameter for the request, in ISO 8601 format.
 
         Yields:
-            str: A chunk of the response body as decoded text.
+            str: Each response chunk's data field as decoded text.
         """
         with httpx.stream(
             "POST",
@@ -206,5 +208,6 @@ class QueryFlowClient:
             headers={"x-api-key": self.api_key, "Accept": "text/event-stream"},
             timeout=None,
         ) as response:
-            for chunk in response.iter_text():
-                yield chunk
+            client = sseclient.SSEClient(response.iter_bytes())
+            for event in client.events():
+                yield event.data
