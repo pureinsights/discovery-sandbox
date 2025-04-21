@@ -150,3 +150,82 @@ class QueryFlowClient:
             timeout=None,
         )
         return response.json()
+
+    @multimethod
+    def text_to_stream(self, processor: Processor, input: dict, timeout: str = None):
+        """Execute a processor with the given input.
+
+        Args:
+            processor (Processor): The processor to execute.
+            input (dict): The input to send to the processor.
+            timeout (str): The timeout parameter for the request, in ISO 8601 format.
+
+        Yields:
+            str: Each response chunk's data field as decoded text.
+        """
+        request_data = json.dumps(
+            {
+                "processor": processor,
+                "input": input,
+            },
+            default=vars,
+        )
+
+        with httpx.stream(
+            "POST",
+            url=self.url + self.INFERENCE_PATH,
+            params={"timeout": timeout} if timeout is not None else {},
+            content=request_data,
+            headers={
+                "x-api-key": self.api_key,
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+            timeout=None,
+        ) as response:
+            for chunk in response.iter_text():
+                yield self._parse_data(chunk)
+
+    @multimethod
+    def text_to_stream(self, processor_id: str, input: dict, timeout: str = None):
+        """Execute a processor by ID with the given input.
+
+        Args:
+            processor_id (str): The UUID of the processor to execute.
+            input (dict): The input to send to the processor.
+            timeout (str): The timeout parameter for the request, in ISO 8601 format.
+
+        Yields:
+            str: Each response chunk's data field as decoded text.
+        """
+        with httpx.stream(
+            "POST",
+            url=self.url + self.INFERENCE_PATH + processor_id,
+            params={"timeout": timeout} if timeout is not None else {},
+            json=input,
+            headers={"x-api-key": self.api_key, "Accept": "text/event-stream"},
+            timeout=None,
+        ) as response:
+            for chunk in response.iter_text():
+                yield self._parse_data(chunk)
+
+    def _parse_data(self, event: str):
+        """Return the data field from a SSE.
+
+        Args:
+            event (str): The original SSE string.
+
+        Returns:
+            str: The data field from the event content.
+        """
+        data = ""
+        for line in event.splitlines():
+            if line.startswith("data:"):
+                content = line.split(":")[1]
+                if content.startswith(" "):
+                    content = content[1:]
+                if data:
+                    data += "\n" + content
+                else:
+                    data = content
+        return data
