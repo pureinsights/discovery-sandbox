@@ -15,7 +15,6 @@ dynamic = ["version"]
 dependencies = [
     "httpx",
     "multimethod",
-    "sseclient-py"
 ]
 
 [project.optional-dependencies]

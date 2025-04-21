@@ -14,7 +14,6 @@
 import json
 
 import httpx
-import sseclient
 from multimethod import multimethod
 
 
@@ -184,9 +183,8 @@ class QueryFlowClient:
             },
             timeout=None,
         ) as response:
-            client = sseclient.SSEClient(response.iter_bytes())
-            for event in client.events():
-                yield event.data
+            for chunk in response.iter_text():
+                yield self._parse_data(chunk)
 
     @multimethod
     def text_to_stream(self, processor_id: str, input: dict, timeout: str = None):
@@ -208,6 +206,26 @@ class QueryFlowClient:
             headers={"x-api-key": self.api_key, "Accept": "text/event-stream"},
             timeout=None,
         ) as response:
-            client = sseclient.SSEClient(response.iter_bytes())
-            for event in client.events():
-                yield event.data
+            for chunk in response.iter_text():
+                yield self._parse_data(chunk)
+
+    def _parse_data(self, event: str):
+        """Return the data field from a SSE.
+
+        Args:
+            event (str): The original SSE string.
+
+        Returns:
+            str: The data field from the event content.
+        """
+        data = ""
+        for line in event.splitlines():
+            if line.startswith("data:"):
+                content = line.split(":")[1]
+                if content.startswith(" "):
+                    content = content[1:]
+                if data:
+                    data += "\n" + content
+                else:
+                    data = content
+        return data
