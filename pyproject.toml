@@ -14,7 +14,7 @@ name = "discovery_inference"
 dynamic = ["version"]
 dependencies = [
     "httpx",
-    "multimethod",
+    "multimethod"
 ]
 
 [project.optional-dependencies]
