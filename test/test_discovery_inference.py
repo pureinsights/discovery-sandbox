@@ -21,7 +21,14 @@ import pytest
 from httpx import HTTPStatusError, Response
 from mockito import mock, unstub, when
 
-from inference.discovery_inference import *
+from inference.discovery_inference import (
+    Credential,
+    Processor,
+    QueryFlowClient,
+    QueryFlowSequence,
+    QueryFlowSequenceProcessor,
+    Server,
+)
 
 
 class TestQueryFlowClient:
@@ -215,7 +222,7 @@ class TestQueryFlowClient:
             default=vars,
         )
         event_data = [
-            "".join(random.choices(string.ascii_letters, k=5)) for i in range(5)
+            "".join(random.choices(string.ascii_letters, k=5)) for _ in range(5)
         ]
 
         stream_mock = mock()
@@ -253,7 +260,7 @@ class TestQueryFlowClient:
             )
         }
         event_data = [
-            "".join(random.choices(string.ascii_letters, k=5)) for i in range(5)
+            "".join(random.choices(string.ascii_letters, k=5)) for _ in range(5)
         ]
 
         stream_mock = mock()
@@ -289,18 +296,18 @@ class TestQueryFlowClient:
             )
         }
 
-        input = original_input
-        processors = [mock(Processor) for i in range(5)]
+        current_input = original_input
+        processors = [mock(Processor) for _ in range(5)]
         for processor in processors:
             output = {
                 "".join(random.choices(string.ascii_letters, k=5)): "".join(
                     random.choices(string.ascii_letters, k=5)
                 )
             }
-            when(queryflow_client).text_to_text(processor, input, None).thenReturn(
-                output
-            )
-            input = output
+            when(queryflow_client).text_to_text(
+                processor, current_input, None
+            ).thenReturn(output)
+            current_input = output
 
         queryflow_sequence = QueryFlowSequence(
             [QueryFlowSequenceProcessor(processor) for processor in processors]
@@ -311,7 +318,7 @@ class TestQueryFlowClient:
 
     def test_execute_system_exit(self, queryflow_client):
         """Tests the execute method when a processor execution fails."""
-        input = {
+        request_input = {
             "".join(random.choices(string.ascii_letters, k=5)): "".join(
                 random.choices(string.ascii_letters, k=5)
             )
@@ -325,13 +332,14 @@ class TestQueryFlowClient:
         response.text = response_text
         status_error.response = response
 
-        when(queryflow_client).text_to_text(processor, input, None).thenRaise(
+        when(queryflow_client).text_to_text(processor, request_input, None).thenRaise(
             status_error
         )
 
         with pytest.raises(SystemExit) as excinfo:
             queryflow_client.execute(
-                QueryFlowSequence([QueryFlowSequenceProcessor(processor)]), input
+                QueryFlowSequence([QueryFlowSequenceProcessor(processor)]),
+                request_input,
             )
 
         assert response_text == excinfo.value.code
@@ -340,7 +348,7 @@ class TestQueryFlowClient:
     def test_parse_data(self, queryflow_client):
         """Test the _parse_data method."""
         event_data = [
-            "".join(random.choices(string.ascii_letters, k=5)) for i in range(5)
+            "".join(random.choices(string.ascii_letters, k=5)) for _ in range(5)
         ]
         event_text = "\n".join(["data: " + content for content in event_data])
         assert "\n".join(event_data) == queryflow_client._parse_data(event_text)
