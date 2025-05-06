@@ -11,9 +11,11 @@
 
 """Entity class definitions for the Inference SDK."""
 
+import sys
 import json
 
 import httpx
+from httpx import HTTPStatusError
 from multimethod import multimethod
 
 
@@ -80,6 +82,41 @@ class Processor:
         self.server = server
 
 
+class QueryFlowSequenceProcessor:
+    """A processor to be executed as part of a QueryFlowSequence.
+
+    Attributes:
+        processor (str | Processor): A Processor entity or UUID of an existing processor to execute.
+        timeout (str):  The timeout parameter for the processor execution, in ISO 8601 format.
+    """
+
+    def __init__(self, processor: str | Processor, timeout: str = None):
+        """Initialize the QueryFlowSequenceProcessor with processor and timeout.
+
+        Args:
+            processor (str | Processor): A Processor entity or UUID of an existing processor to execute.
+            timeout (str):  The timeout parameter for the processor execution, in ISO 8601 format.
+        """
+        self.processor = processor
+        self.timeout = timeout
+
+
+class QueryFlowSequence:
+    """List of QueryFlow processors to be executed sequentially.
+
+    Attributes:
+        processors (list[QueryFlowSequenceProcessor]): The list of processors to execute.
+    """
+
+    def __init__(self, processors: list[QueryFlowSequenceProcessor]):
+        """Initialize the QueryFlowSequence with processors.
+
+        Args:
+            processors (list[QueryFlowSequenceProcessor]): The list of processors to execute.
+        """
+        self.processors = processors
+
+
 class QueryFlowClient:
     """A client class to execute QueryFlow requests.
 
@@ -102,7 +139,9 @@ class QueryFlowClient:
         self.api_key = api_key
 
     @multimethod
-    def text_to_text(self, processor: Processor, input: dict, timeout: str = None):
+    def text_to_text(
+        self, processor: Processor, input: dict, timeout: str | None = None
+    ):
         """Execute a processor with the given input.
 
         Args:
@@ -128,10 +167,13 @@ class QueryFlowClient:
             headers={"x-api-key": self.api_key, "Content-Type": "application/json"},
             timeout=None,
         )
-        return response.json()
+
+        if response.status_code == 204:
+            return {}
+        return response.raise_for_status().json()
 
     @multimethod
-    def text_to_text(self, processor_id: str, input: dict, timeout: str = None):
+    def text_to_text(self, processor_id: str, input: dict, timeout: str | None = None):
         """Execute a processor by ID with the given input.
 
         Args:
@@ -149,7 +191,10 @@ class QueryFlowClient:
             headers={"x-api-key": self.api_key},
             timeout=None,
         )
-        return response.json()
+
+        if response.status_code == 204:
+            return {}
+        return response.raise_for_status().json()
 
     @multimethod
     def text_to_stream(self, processor: Processor, input: dict, timeout: str = None):
@@ -208,6 +253,30 @@ class QueryFlowClient:
         ) as response:
             for chunk in response.iter_text():
                 yield self._parse_data(chunk)
+
+    def execute(self, sequence: QueryFlowSequence, input_data: dict):
+        """Executes a QueryFlow processor sequence.
+
+        Args:
+            sequence (QueryFlowSequence): The sequence of QueryFlowSequenceProcessors to execute.
+            input_data (dict): The initial input with which to start the execution.
+
+        Returns:
+            dict: The final response data from the sequence execution.
+
+        Raises:
+            SystemExit: If the execution of any processor fails.
+        """
+        for queryflow_processor in sequence.processors:
+            try:
+                input_data = self.text_to_text(
+                    queryflow_processor.processor,
+                    input_data,
+                    queryflow_processor.timeout,
+                )
+            except HTTPStatusError as e:
+                sys.exit(e.response.text)
+        return input_data
 
     def _parse_data(self, event: str):
         """Return the data field from a SSE.
