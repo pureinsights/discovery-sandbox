@@ -228,6 +228,7 @@ class QueryFlowClient:
             },
             timeout=None,
         ) as response:
+            response.raise_for_status()
             for chunk in response.iter_text():
                 yield self._parse_data(chunk)
 
@@ -251,6 +252,7 @@ class QueryFlowClient:
             headers={"x-api-key": self.api_key, "Accept": "text/event-stream"},
             timeout=None,
         ) as response:
+            response.raise_for_status()
             for chunk in response.iter_text():
                 yield self._parse_data(chunk)
 
