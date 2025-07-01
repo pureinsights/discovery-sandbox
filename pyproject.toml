@@ -9,9 +9,17 @@
 # file or any information contained within is strictly forbidden unless
 # prior written permission has been granted by Pureinsights Technology Ltd.
 
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "discovery_inference"
-dynamic = ["version"]
+version = "0.0.1"
+requires-python = ">=3.13"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "httpx",
     "multimethod"
