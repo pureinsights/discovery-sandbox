@@ -15,7 +15,7 @@ A Streamlit-based intelligent PDF chatbot that allows users to upload PDF docume
 ### Dependencies
 
 ```bash
-pip install streamlit pypdf
+pip install streamlit pypdf python-dotenv
 ```
 
 ### Environment Configuration
