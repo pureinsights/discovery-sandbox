@@ -9,7 +9,7 @@
 # file or any information contained within is strictly forbidden unless
 # prior written permission has been granted by Pureinsights Technology Ltd.
 
-"""Tests for the discovery_inference module."""
+"""Tests for the discovery_sandbox module."""
 
 import json
 import random
@@ -21,7 +21,7 @@ import pytest
 from httpx import HTTPStatusError, Response
 from mockito import mock, unstub, when
 
-from inference.discovery_inference import (
+from sandbox.discovery_sandbox import (
     Credential,
     Processor,
     QueryFlowClient,
@@ -85,7 +85,7 @@ class TestQueryFlowClient:
 
         when(response).raise_for_status().thenReturn(response)
         when(httpx).post(
-            url=queryflow_client.url + queryflow_client.INFERENCE_PATH,
+            url=queryflow_client.url + queryflow_client.SANDBOX_PATH,
             params={},
             content=request_data,
             headers={
@@ -121,7 +121,7 @@ class TestQueryFlowClient:
         response = Response(204)
 
         when(httpx).post(
-            url=queryflow_client.url + queryflow_client.INFERENCE_PATH,
+            url=queryflow_client.url + queryflow_client.SANDBOX_PATH,
             params={},
             content=request_data,
             headers={
@@ -152,7 +152,7 @@ class TestQueryFlowClient:
         when(response).raise_for_status().thenReturn(response)
 
         when(httpx).post(
-            url=queryflow_client.url + queryflow_client.INFERENCE_PATH + processor_id,
+            url=queryflow_client.url + queryflow_client.SANDBOX_PATH + processor_id,
             params={},
             json=request_input,
             headers={"x-api-key": queryflow_client.api_key},
@@ -175,7 +175,7 @@ class TestQueryFlowClient:
         when(response).raise_for_status().thenReturn(response)
 
         when(httpx).post(
-            url=queryflow_client.url + queryflow_client.INFERENCE_PATH + processor_id,
+            url=queryflow_client.url + queryflow_client.SANDBOX_PATH + processor_id,
             params={},
             json=request_input,
             headers={"x-api-key": queryflow_client.api_key},
@@ -233,7 +233,7 @@ class TestQueryFlowClient:
         when(stream_mock).__exit__().thenReturn()
         when(httpx).stream(
             "POST",
-            url=queryflow_client.url + queryflow_client.INFERENCE_PATH,
+            url=queryflow_client.url + queryflow_client.SANDBOX_PATH,
             params={},
             content=request_data,
             headers={
@@ -271,7 +271,7 @@ class TestQueryFlowClient:
         when(stream_mock).__exit__().thenReturn()
         when(httpx).stream(
             "POST",
-            url=queryflow_client.url + queryflow_client.INFERENCE_PATH + processor_id,
+            url=queryflow_client.url + queryflow_client.SANDBOX_PATH + processor_id,
             params={},
             json=request_input,
             headers={
