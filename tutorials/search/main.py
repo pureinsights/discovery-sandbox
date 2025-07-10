@@ -244,24 +244,42 @@ def format_relative_date(date):
     """Format date as relative time (e.g., '2 months ago')"""
     now = datetime.now(date.tzinfo)
     diff = now - date
-    
+     
     if diff.days > 365:
-        years = diff.days // 365
-        return f"{years} year{'s' if years > 1 else ''} ago"
+        return format_years(diff.days)
     elif diff.days > 30:
-        months = diff.days // 30
-        return f"{months} month{'s' if months > 1 else ''} ago"
+        return format_months(diff.days)
     elif diff.days > 7:
-        weeks = diff.days // 7
-        return f"{weeks} week{'s' if weeks > 1 else ''} ago"
+        return format_weeks(diff.days)
     elif diff.days > 0:
-        return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+        return format_days(diff.days)
     elif diff.seconds > 3600:
-        hours = diff.seconds // 3600
-        return f"{hours} hour{'s' if hours > 1 else ''} ago"
+        return format_hours(diff.seconds)
     else:
-        minutes = diff.seconds // 60
-        return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+        return format_minutes(diff.seconds)
+
+def format_years(days):
+    years = days // 365
+    return f"{years} year{'s' if years > 1 else ''} ago"
+
+def format_months(days):
+    months = days // 30
+    return f"{months} month{'s' if months > 1 else ''} ago"
+
+def format_weeks(days):
+    weeks = days // 7
+    return f"{weeks} week{'s' if weeks > 1 else ''} ago"
+
+def format_days(days):
+    return f"{days} day{'s' if days > 1 else ''} ago"
+
+def format_hours(seconds):
+    hours = seconds // 3600
+    return f"{hours} hour{'s' if hours > 1 else ''} ago"
+
+def format_minutes(seconds):
+    minutes = seconds // 60
+    return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
 
 
 # Initialize session state
@@ -360,13 +378,12 @@ if search_query or search_button:
     cards = 2
 
     with col1:
-        if st.button("←"):
-            if st.session_state.carousel_index - cards >= 0:
-                st.session_state.carousel_index -= cards
+        if st.button("←") and st.session_state.carousel_index - cards >= 0:
+            st.session_state.carousel_index -= cards
+
     with col3:
-        if st.button("→"):
-            if st.session_state.carousel_index + cards < len(vector_results):
-                st.session_state.carousel_index += cards
+        if st.button("→") and st.session_state.carousel_index + cards < len(vector_results):
+            st.session_state.carousel_index += cards
 
     with col2:
         # Display 3 documents at a time

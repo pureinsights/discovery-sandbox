@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from inference.discovery_inference import *
+from inference.discovery_inference import QueryFlowClient, Credential, Server, Processor
 
 load_dotenv()
 
@@ -81,14 +81,14 @@ def chat_completion(messages):
     response = qfc.text_to_text(chat_oai, {})
     return response['choices'][0]['message']['content']
 
-def vector_search_es(embeddings, index, maxResults=3):
+def vector_search_es(embeddings, index, max_results=3):
     vector_search = Processor("elasticsearch", {
         "action": "vector",
         "index": index,
         "field": "embedding",
         "vector": embeddings,
         "minScore": 0.6,
-        "maxResults": maxResults,
+        "maxResults": max_results,
         "query": {
             "match_all": {}
         }

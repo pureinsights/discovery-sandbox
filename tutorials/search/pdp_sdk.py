@@ -1,6 +1,6 @@
 import os 
 from dotenv import load_dotenv
-from inference.discovery_inference import *
+from inference.discovery_inference import QueryFlowClient, Credential, Server, Processor
 
 load_dotenv()
 
@@ -258,16 +258,16 @@ def is_question(query):
     return query.endswith('?') or query.endswith('¿')
 
 def build_context(chunks):
-    maxTokens = model["maxTokens"] * model["maxContextFactor"]
-    contextTokens = 0
+    max_tokens = model["maxTokens"] * model["maxContextFactor"]
+    context_tokens = 0
     context = ''
 
     for chunk in chunks:
-        chunkContent = chunk['text']
-        chunkTokens = len(chunkContent) // TOKEN_SIZE
-        if contextTokens + chunkTokens < maxTokens:
-            context = context + 'context[' + str(chunk['number']) + ']: ' + chunkContent + '\n\n'
-        contextTokens += chunkTokens
+        chunk_content = chunk['text']
+        chunk_tokens = len(chunk_content) // TOKEN_SIZE
+        if context_tokens + chunk_tokens < max_tokens:
+            context = context + 'context[' + str(chunk['number']) + ']: ' + chunk_content + '\n\n'
+        context_tokens += chunk_tokens
     
     return context
 

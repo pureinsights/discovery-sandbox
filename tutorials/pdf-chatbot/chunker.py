@@ -173,7 +173,7 @@ class PDFChunker:
         max_overlap = min(len(chunk1), len(chunk2))
         
         for i in range(max_overlap, 0, -1):
-            if chunk1[-i:] == chunk2[:i]:
+            if chunk1.endswith(chunk2[:i]):
                 return i
         
         return 0

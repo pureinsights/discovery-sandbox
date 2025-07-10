@@ -224,26 +224,31 @@ def export_chat_history():
 def display_chat_history():
     """Display chat messages from session state"""
     for message in st.session_state.display_messages:
-        with st.chat_message(message["role"]):
-            if message["role"] == "assistant":
-                # Handle both dict and JSON string responses
-                if isinstance(message["content"], dict):
-                    response = message["content"]
-                else:
-                    try:
-                        response = json.loads(message["content"])
-                    except json.JSONDecodeError:
-                        st.markdown(message["content"])
-                        continue
-                
-                # Display the response
-                st.markdown(response["response"])
-                if response.get("references"):
-                    with st.expander("📘 References", expanded=False):
-                        for ref in response["references"]:
-                            st.write(f"- {ref}")
-            else:
-                st.markdown(message["content"])
+        display_message(message)
+
+def display_message(message):
+    with st.chat_message(message["role"]):
+        if message["role"] == "assistant":
+            response = parse_message_content(message["content"])
+            display_response(response)
+        else:
+            st.markdown(message["content"])
+
+def parse_message_content(content):
+    if isinstance(content, dict):
+        return content
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        return {"response": content}
+
+def display_response(response):
+    st.markdown(response["response"])
+    if response.get("references"):
+        with st.expander("📘 References", expanded=False):
+            for ref in response["references"]:
+                st.write(f"- {ref}")
+
 
 def handle_chat_input():
     """Handle user chat input and generate response"""
@@ -313,7 +318,7 @@ def check_pdfs_in_index():
         else:
             st.info("No PDFs found in current index")
             
-    except Exception as e:
+    except Exception:
         st.error("No PDFs found in current index")
 
 def handle_file_upload():
@@ -325,44 +330,52 @@ def handle_file_upload():
     )
     
     if uploaded_file is not None:
-        # Check file size
-        file_size_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
-        if file_size_mb > CONFIG['MAX_FILE_SIZE_MB']:
-            st.error(f"File size ({file_size_mb:.1f}MB) exceeds limit ({CONFIG['MAX_FILE_SIZE_MB']}MB)")
+        if not check_file_size(uploaded_file):
             return
         
-        # Process PDF
         try:
-            chunk_size = st.session_state.get('chunk_size', CONFIG['DEFAULT_CHUNK_SIZE'])
-            overlap_size = st.session_state.get('overlap_size', CONFIG['DEFAULT_OVERLAP_SIZE'])
-            with st.spinner("Processing PDF..."):
-                chunks = process_pdf_cached(uploaded_file.getvalue(), uploaded_file.name, chunk_size, overlap_size)
-            
+            chunks = process_pdf(uploaded_file)
             if chunks:
-                st.success(f"PDF processed successfully! Generated {len(chunks)} chunks.")
-                
-                # Display chunk statistics
-                with st.expander("📊 Chunk Statistics", expanded=True):
-                    chunk_lengths = [len(chunk) for chunk in chunks]
-                    st.json({
-                        "Total Chunks": len(chunks),
-                        "Min Chunk Length": min(chunk_lengths) if chunk_lengths else 0,
-                        "Max Chunk Length": max(chunk_lengths) if chunk_lengths else 0,
-                        "Chunk Size Setting": chunk_size,
-                        "Overlap Size Setting": overlap_size
-                    })
-                
-                # Generate embeddings button
-                if st.button(f"🚀 Generate Embeddings to '{st.session_state.get('index_input')}'"):
-                    if generate_embeddings(uploaded_file.name, chunks):
-                        st.balloons()
-                        st.rerun()
-                    
+                display_success_message(chunks)
+                display_chunk_statistics(chunks)
+                generate_embeddings_button(uploaded_file.name, chunks)
             else:
                 st.error("No text could be extracted from the PDF.")
-                
         except Exception as e:
             st.error(f"Error processing PDF: {str(e)}")
+
+def check_file_size(uploaded_file):
+    file_size_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
+    if file_size_mb > CONFIG['MAX_FILE_SIZE_MB']:
+        st.error(f"File size ({file_size_mb:.1f}MB) exceeds limit ({CONFIG['MAX_FILE_SIZE_MB']}MB)")
+        return False
+    return True
+
+def process_pdf(uploaded_file):
+    chunk_size = st.session_state.get('chunk_size', CONFIG['DEFAULT_CHUNK_SIZE'])
+    overlap_size = st.session_state.get('overlap_size', CONFIG['DEFAULT_OVERLAP_SIZE'])
+    with st.spinner("Processing PDF..."):
+        return process_pdf_cached(uploaded_file.getvalue(), uploaded_file.name, chunk_size, overlap_size)
+
+def display_success_message(chunks):
+    st.success(f"PDF processed successfully! Generated {len(chunks)} chunks.")
+
+def display_chunk_statistics(chunks):
+    with st.expander("📊 Chunk Statistics", expanded=True):
+        chunk_lengths = [len(chunk) for chunk in chunks]
+        st.json({
+            "Total Chunks": len(chunks),
+            "Min Chunk Length": min(chunk_lengths) if chunk_lengths else 0,
+            "Max Chunk Length": max(chunk_lengths) if chunk_lengths else 0,
+            "Chunk Size Setting": st.session_state.get('chunk_size', CONFIG['DEFAULT_CHUNK_SIZE']),
+            "Overlap Size Setting": st.session_state.get('overlap_size', CONFIG['DEFAULT_OVERLAP_SIZE'])
+        })
+
+def generate_embeddings_button(file_name, chunks):
+    if st.button(f"🚀 Generate Embeddings to '{st.session_state.get('index_input')}'"):
+        if generate_embeddings(file_name, chunks):
+            st.balloons()
+            st.rerun()
 
 def reset_system_prompt():
     """Reset system prompt to default"""
@@ -464,6 +477,9 @@ def setup_sidebar():
                 on_change=on_system_prompt_change,
                 help="Customize the AI assistant's behavior and instructions"
             )
+
+            # Dummy operation to keep the variable
+            _ = system_prompt
             
             # System prompt controls
             col1, col2 = st.columns(2)
