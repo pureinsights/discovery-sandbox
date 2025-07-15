@@ -1,6 +1,6 @@
-# Multiple Search and RAG example (Inference SDK)
+# Multiple Search and RAG example (Sandbox SDK)
 
-A Streamlit-based demonstration showcasing the capabilities of the QueryFlow Inference SDK, including keyword search, suggestions, semantic search, and RAG (Retrieval-Augmented Generation) functionality.
+A Streamlit-based demonstration showcasing the capabilities of the QueryFlow Sandbox SDK, including keyword search, suggestions, semantic search, and RAG (Retrieval-Augmented Generation) functionality.
 
 ## Features
 - Keyword Search: Traditional text-based search with exact and fuzzy matching
@@ -29,11 +29,11 @@ QF_KEY=your_queryflow_api_key
 ```
 
 ### QueryFlow Configuration
-The QF instance must have inference enabled. Update your `queryflow-api/src/main/resources/application.yml`:
+The QF instance must have sandbox enabled. Update your `queryflow-api/src/main/resources/application.yml`:
 
 ```yml
 queryflow:
-  inference:
+  sandbox:
     enabled: true
 ```
 

@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from inference.discovery_inference import QueryFlowClient, Credential, Server, Processor
+from sandbox.discovery_sandbox import QueryFlowClient, Credential, Server, Processor
 
 load_dotenv()
 

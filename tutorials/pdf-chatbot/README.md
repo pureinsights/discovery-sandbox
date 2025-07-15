@@ -1,6 +1,6 @@
-# PDF Chatbot 📚 (Inference SDK)
+# PDF Chatbot 📚 (Sandbox SDK)
 
-A Streamlit-based intelligent PDF chatbot that allows users to upload PDF documents, process them into searchable chunks, and ask questions about their content using vector search and AI-powered responses by using Queryflow Inference SDK.
+A Streamlit-based intelligent PDF chatbot that allows users to upload PDF documents, process them into searchable chunks, and ask questions about their content using vector search and AI-powered responses by using Queryflow Sandbox SDK.
 
 ## Features
 - PDF Upload & Processing: Upload and process PDF documents with configurable chunking
@@ -31,11 +31,11 @@ QF_KEY=your_queryflow_api_key
 ```
 
 ### QueryFlow Configuration
-The QF instance must have inference enabled. Update your `queryflow-api/src/main/resources/application.yml`:
+The QF instance must have sandbox enabled. Update your `queryflow-api/src/main/resources/application.yml`:
 
 ```yml
 queryflow:
-  inference:
+  sandbox:
     enabled: true
 ```
 
