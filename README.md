@@ -1,5 +1,5 @@
-# Pureinsights Discovery Platform: Inference SDK 
-_Discovery Inference SDK_ is a Python package that allows developers to programatically access Discovery features. Currently, it supports executing one or multiple QueryFlow processors. 
+# Pureinsights Discovery Platform: Sandbox SDK 
+_Discovery Sandbox SDK_ is a Python package that allows developers to programatically access Discovery features. Currently, it supports executing one or multiple QueryFlow processors. 
 
 ## Requirements
 - Python 3.13+ 
@@ -34,7 +34,7 @@ To generate a HTML coverage report:
 pytest --cov=. --cov-report html
 ```
 ## Implementation
-The SDK currently provides classes that represent PDP entities (`Server`, `Credential`, `Processor`) as well as clients to interact with distinct endpoints. The API requests are made using the [httpx](https://www.python-httpx.org/) library, and serialization is done using the `json` built-in module. 
+The SDK currently provides classes that represent Discovery entities (`Server`, `Credential`, `Processor`) as well as clients to interact with distinct endpoints. The API requests are made using the [httpx](https://www.python-httpx.org/) library, and serialization is done using the `json` built-in module. 
 This client does the following: 
 
 - Provides methods to execute standalone QueryFlow processors using `text_to_text/text_to_stream` that return the JSON execution output as a dictionary or text stream respectively.

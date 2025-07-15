@@ -1,15 +1,4 @@
-# Copyright (c) 2025 Pureinsights Technology Ltd. All rights reserved.
-#
-# Permission to use, copy, modify or distribute this software and its
-# documentation for any purpose is subject to a licensing agreement with
-# Pureinsights Technology Ltd.
-#
-# All information contained within this file is the property of
-# Pureinsights Technology Ltd. The distribution or reproduction of this
-# file or any information contained within is strictly forbidden unless
-# prior written permission has been granted by Pureinsights Technology Ltd.
-
-"""Entity class definitions for the Inference SDK."""
+"""Entity class definitions for the Sandbox SDK."""
 
 import sys
 import json
@@ -123,10 +112,10 @@ class QueryFlowClient:
     Attributes:
         url (str): The base url for the request.
         api_key (str): The api key to use in the request.
-        INFERENCE_PATH (str): The api path to use in the request.
+        SANDBOX_PATH (str): The api path to use in the request.
     """
 
-    INFERENCE_PATH = "/v2/inference/"
+    SANDBOX_PATH = "/v2/sandbox/"
 
     def __init__(self, url: str, api_key: str):
         """Initialize the client with url and api key.
@@ -161,7 +150,7 @@ class QueryFlowClient:
         )
 
         response = httpx.post(
-            url=self.url + self.INFERENCE_PATH,
+            url=self.url + self.SANDBOX_PATH,
             params={"timeout": timeout} if timeout is not None else {},
             content=request_data,
             headers={"x-api-key": self.api_key, "Content-Type": "application/json"},
@@ -185,7 +174,7 @@ class QueryFlowClient:
             dict: The response data from the request.
         """
         response = httpx.post(
-            url=self.url + self.INFERENCE_PATH + processor_id,
+            url=self.url + self.SANDBOX_PATH + processor_id,
             params={"timeout": timeout} if timeout is not None else {},
             json=input,
             headers={"x-api-key": self.api_key},
@@ -218,7 +207,7 @@ class QueryFlowClient:
 
         with httpx.stream(
             "POST",
-            url=self.url + self.INFERENCE_PATH,
+            url=self.url + self.SANDBOX_PATH,
             params={"timeout": timeout} if timeout is not None else {},
             content=request_data,
             headers={
@@ -245,7 +234,7 @@ class QueryFlowClient:
         """
         with httpx.stream(
             "POST",
-            url=self.url + self.INFERENCE_PATH + processor_id,
+            url=self.url + self.SANDBOX_PATH + processor_id,
             params={"timeout": timeout} if timeout is not None else {},
             json=input,
             headers={"x-api-key": self.api_key, "Accept": "text/event-stream"},
