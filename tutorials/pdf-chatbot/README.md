@@ -30,15 +30,6 @@ QF_HOST=your_queryflow_host
 QF_KEY=your_queryflow_api_key
 ```
 
-### QueryFlow Configuration
-The QF instance must have sandbox enabled. Update your `queryflow-api/src/main/resources/application.yml`:
-
-```yml
-queryflow:
-  sandbox:
-    enabled: true
-```
-
 ## Usage
 
 ### Starting the Application
