@@ -4,24 +4,7 @@ from pdp_sdk import autocomplete_query, vectorize_query, es_vector_search, es_ke
 
 MOCKUP_IMAGE = "https://media.licdn.com/dms/image/C4D0BAQFc43DVkxpVjg/company-logo_200_200/0/1630474077735/pureinsights_technology_logo?e=2147483647&v=beta&t=BUJJM6bpwWgw5tFW61Xvfa9j5_BEiL1wP_Wprcoo0ng"
 
-######### Placeholder values #########
-
-# Keyword Search Index
-keyword_index = 'website_data'
-# REQUIRED FIELDS: publication_date, title, description, contents
-
-# Suggestion Index  
-autocomplete_index = 'autocomplete'
-# REQUIRED FIELDS: title OR question
-
-# Vector Search / RAG Index
-vector_index = {
-    "index": 'vector_data',
-    "field": "vector"  # Field where the vectors are stored
-}
-# REQUIRED FIELDS: content (text), vector (dense_vector)
-
-######################################
+index = 'test_search'
 
 # Page configuration
 st.set_page_config(page_title="Search Interface", layout="centered")
@@ -156,24 +139,21 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def get_autocomplete_suggestions(query, autocomplete_index):
+def get_autocomplete_suggestions(query, index):
     """Get autocomplete suggestions using Elasticsearch format"""
-    res = autocomplete_query(query, autocomplete_index)
+    res = autocomplete_query(query, index)
     suggestions = []
-    for i in res["hits"]["hits"]:
-        suggestions.append(i["_source"]["title"] if "website_data" in i["_index"] else i["_source"]["question"])
-
-    suggestions = list(set(suggestions))  # Remove duplicates
-    if query in suggestions:
-        suggestions.remove(query)  # Remove the exact query from suggestions
+    for i in res["suggest"]["completion#suggest"][0]["options"]:
+        suggestions.append(i["_source"]["title"])
 
     if query:
         return [s for s in suggestions if query.lower() in s.lower()]
+    
     return suggestions
 
-def get_vector_search_results(embeddings, vector_index, field):
+def get_vector_search_results(embeddings, index):
     """Get vector search results using Elasticsearch format"""
-    res = es_vector_search(embeddings, index=vector_index, field=field)
+    res = es_vector_search(embeddings, index)
 
     # Parse the Elasticsearch response
     results = []
@@ -183,23 +163,23 @@ def get_vector_search_results(embeddings, vector_index, field):
         # Format publication date
         pub_date = datetime.fromisoformat(source["publication_date"].replace('Z', '+00:00'))
         formatted_date = format_relative_date(pub_date)
-        
+
         results.append({
-            "title": source["title_data"][0],
-            "description": source["title_data"][1].replace("___", "") if len(source["title_data"]) > 1 else "No description available.",
+            "title": source["title"],
+            "description": source["description"],
             "date": formatted_date,
-            "author": "Unknown",
-            "image": source["image"][0] if 'image' in source else MOCKUP_IMAGE,
-            "url": source["uri"],
-            "text": source["chunk"],
-            "score": hit["_score"]
+            "url": source["reference"],
+            "image": source["image"][0] if "image" in source else MOCKUP_IMAGE,
+            "author": source["author"][0] if source["author"] else "Unknown",
+            "score": hit["_score"] if hit["_score"] else 1.0,
+            "text": source["contents"]
         })
     
     return results
 
-def get_keyword_search_results(query, keyword_index, sort, start=0, size=10):
+def get_keyword_search_results(query, index, sort, start=0, size=10):
     """Get keyword search results using Elasticsearch format"""
-    res = es_keyword_search(query, keyword_index, sort=sort, start=start, size=size)
+    res = es_keyword_search(query, index, sort=sort, start=start, size=size)
     
     # Parse the Elasticsearch response
     total_results = res["hits"]["total"]["value"]
@@ -212,20 +192,12 @@ def get_keyword_search_results(query, keyword_index, sort, start=0, size=10):
         pub_date = datetime.fromisoformat(source["publication_date"].replace('Z', '+00:00'))
         formatted_date = pub_date.strftime("%Y-%m-%d")
         
-        # Create highlight (mock highlighting for demo)
-        highlight = source["description"] if "description" in source else "No description available."
-        if query:
-            highlight = highlight.replace(query, f"<span class='highlight'>{query}</span>")
-            highlight = highlight.replace(query.upper(), f"<span class='highlight'>{query.upper()}</span>")
-            highlight = highlight.replace(query.lower(), f"<span class='highlight'>{query.lower()}</span>")
-        
         results.append({
             "title": source["title"],
-            "description": highlight,
+            "description": source["description"],
             "date": formatted_date,
             "url": source["reference"],
             "image": source["image"][0] if "image" in source else MOCKUP_IMAGE,
-            "highlight": highlight,
             "author": source["author"][0] if source["author"] else "Unknown",
             "score": hit["_score"] if hit["_score"] else 1.0
         })
@@ -318,7 +290,7 @@ if search_query != st.session_state.search_query:
 
 # Show autocomplete suggestions
 if st.session_state.show_suggestions and search_query:
-    suggestions = get_autocomplete_suggestions(search_query, autocomplete_index)
+    suggestions = get_autocomplete_suggestions(search_query, index)
     if suggestions:
         with st.expander("**Suggestions**", expanded=True, icon="💡"): 
             # put all suggestions in columns, with 3 per row for example
@@ -345,7 +317,7 @@ if search_query or search_button:
         or st.session_state.last_query != search_query)
     ):
         st.session_state.embeddings = vectorize_query(search_query)
-        st.session_state.vector_results = get_vector_search_results(st.session_state.embeddings, vector_index["index"], vector_index["field"])
+        st.session_state.vector_results = get_vector_search_results(st.session_state.embeddings, index)
         st.session_state.carousel_index = 0  # reset to first window
         st.session_state.last_query = search_query
 
@@ -401,7 +373,11 @@ if search_query or search_button:
                         <div class="carousel-imagecontainer">
                             <img src="{result['image']}" alt="{result['title']}" class="carousel-img">
                         </div>
-                        <div class="carousel-title"><b>{result['title']}</b></div>
+                        <div class="carousel-title"><b>
+                            <a href="{result['url']}" target="_blank">
+                                {result['title']}
+                            </a>
+                        </b></div>
                         <div class="carousel-description">{result['description']}</div>
                         <div class="carousel-date">{result['date']}</div>
                     </div>
@@ -424,7 +400,7 @@ with col2:
 
 # Calculate start index for pagination
 start = (st.session_state.current_page - 1) * st.session_state.results_per_page
-keyword_results = get_keyword_search_results(search_query, keyword_index, sort, start=start, size=st.session_state.results_per_page)
+keyword_results = get_keyword_search_results(search_query, index, sort, start=start, size=st.session_state.results_per_page)
 
 # Results count and sort options
 with col1:
@@ -435,8 +411,12 @@ for result in keyword_results['results']:
     st.markdown(f"""
     <div class="keyword-result">
         <img src="{result['image']}" alt="{result['title']}" class="keyword-image">
-        <div class="keyword-title">{result['title']}</div>
-        <div class="keyword-description">{result['highlight']}</div>
+        <div class="keyword-title">
+            <a href="{result['url']}" target="_blank">
+                <b>{result['title']}</b>
+            </a>
+        </div>
+        <div class="keyword-description">{result['description']}</div>
         <div class="keyword-date">{result['date']} • by {result['author']} • Score: {result['score']:.2f}</div>
     </div>
     """, unsafe_allow_html=True)

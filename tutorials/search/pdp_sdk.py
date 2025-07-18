@@ -12,33 +12,18 @@ You are an excellent question and answer, and chat completion system. Everything
 
 Guidelines for processing the context:
 1. Pay close attention to all details provided in the context.
-2. Note any citationIds associated with pieces of information.
-3. Identify key facts, figures, and concepts that may be relevant to answering the provided question.
+2. Identify key facts, figures, and concepts that may be relevant to answering the provided question.
 
 When formulating your answer:
 1. Think step-by-step.
 2. Use only information from the provided context. Do not include external knowledge or assumptions.
-3. Be verbose in your response, especially for short queries. Elaborate on relevant points to provide a fuller understanding. Start with a strong opener that summarizes the answer. 
-4. Do not include any information that is not explicitly stated or directly implied by the context.
-5. Do not ask follow-up questions or request additional information.
-6. If you are not sure about the answer or completion, respond with '' ONLY. Do not provide any explanation for why there is no answer.
-7. If you do not have any information, please respond with '' ONLY. Do not provide any explanation for why there is no answer.
-8. For each piece of information you use, add a citation using the 'citationId' provided. The citation format is [citationId], e.g., [2]. DO NOT add a separate References or Citations section. ALWAYS USE CITATIONS. 
-9. If two or more pieces of information have the same 'citationId' use a single citation [citationId] to avoid duplication.
-10. If there's not enough information provided DO NOT mention it in the answer.
-11. Before returning the result review your answer against all rules. Return '' if the answer does not follow the rules. Do not provide any explanation for why there is no answer. 
-12. Answer concisely unless elaboration is explicitly required. Do not include additional context unless it directly enhances the understanding of the answer.
-13. Avoid unnecessary citations. If multiple citations support the same fact, include only one citation, or consolidate them into a single reference.
-14. Omit quotes or descriptions of context unless asked for. Only state the key information relevant to the question.
-15. Do not explain how the information was determined. Focus solely on delivering the answer, not the process of arriving at it.
-
-Formatting Requirements:
-1. Use proper nesting of HTML tags for clarity and maintainability.
-2. Ensure all HTML tags are correctly closed.
-2. Use lists (<ul>, <ol>, <li>) and bolding (<b>) format for key information. 
-4. If a statement functions like a header, separate it using <br> tags before and after the statement.
-5. When a list starts and ends (</ul>, </ol>), add a <br> tag for formatting purposes. 
-6. Wrap each paragraph in <p> tags.
+3. Do not include any information that is not explicitly stated or directly implied by the context.
+4. Do not ask follow-up questions or request additional information.
+5. If you are not sure about the answer or completion, respond with '' ONLY. Do not provide any explanation for why there is no answer.
+6. If you do not have any information, please respond with '' ONLY. Do not provide any explanation for why there is no answer.
+7. If there's not enough information provided DO NOT mention it in the answer.
+8. Before returning the result review your answer against all rules. Return '' if the answer does not follow the rules. Do not provide any explanation for why there is no answer. 
+9. Answer concisely unless elaboration is explicitly required. Do not include additional context unless it directly enhances the understanding of the answer.
 
 Remember, your answer must be based solely on the information provided in the context. Do not introduce external knowledge or make assumptions beyond what is given. Ensure your response is detailed, informative, formatted and include relevant citations. Do not use markup headings (H1, H2, H3, etc) format such as #, ##, ###, etc. Check that the opener contains a briefing of the whole answer.
 
@@ -88,7 +73,16 @@ es_server = Server("elasticsearch", {
 
 # Processors
 
-def es_keyword_search(query, index='website_data', start=0, size=10, filters=[], sort=[{"_score": {"order": "desc"}}]):
+def store_es(doc, index): 
+    store_es = Processor("elasticsearch", {
+        "action": "store",
+        "index": index,
+        "document": doc
+    }, es_server)
+
+    qfc.text_to_text(store_es, {})
+
+def es_keyword_search(query, index='test_search', start=0, size=10, filters=[], sort=[{"_score": {"order": "desc"}}]):
     if not query or query.strip() == "":
         processor = Processor("elasticsearch", {
             "body": {
@@ -121,58 +115,22 @@ def es_keyword_search(query, index='website_data', start=0, size=10, filters=[],
                 "size": size,
                 "sort": sort,
                 "query": {
-                    "function_score": {
-                        "query": {
-                            "bool": {
-                                "filter": filters,
-                                "should": [
-                                    {
-                                        "query_string": {
-                                            "query": query,
-                                            "fields": [
-                                                "title.standard^5",
-                                                "description^3",
-                                                "contents"
-                                            ],
-                                            "default_operator": 'AND' if (len(query) >= 3) else 'OR',
-                                            "fuzziness": "AUTO"
-                                        }
-                                    }
-                                ]
-                            }
-                        },
-                        "functions": [
+                    "bool": {
+                        "filter": filters,
+                        "should": [
                             {
-                                "gauss": {
-                                    "publication_date": {
-                                        "origin": "now",
-                                        "scale": "180d",
-                                        "offset": "90d",
-                                        "decay": 0.75
-                                    }
+                                "multi_match": {
+                                    "query": query,
+                                    "fields": [
+                                        "title^5",
+                                        "description^3",
+                                        "contents"
+                                    ],
+                                    "fuzziness": "AUTO"
                                 }
                             }
-                        ],
-                        "boost_mode": "multiply",
-                        "score_mode": "sum"
+                        ]
                     }
-                },
-                "highlight": {
-                    "fields": {
-                        "title.standard": {
-                            "number_of_fragments": 0
-                        },
-                        "description": {
-                            "number_of_fragments": 0
-                        }
-                    },
-                    "pre_tags": [
-                        "<FONT COLOR=\"BLUE\">"
-                    ],
-                    "post_tags": [
-                        "</FONT>"
-                    ],
-                    "require_field_match": False
                 }
             },
             "path": f"/{index}/_search",
@@ -181,34 +139,12 @@ def es_keyword_search(query, index='website_data', start=0, size=10, filters=[],
         }, es_server)
     return qfc.text_to_text(processor, {})
 
-def autocomplete_query(query, index='autocomplete', size=5):
+def autocomplete_query(query, index='test_search', size=5):
     es_autocomplete = Processor("elasticsearch", {
-        "body": {
-            "size": size,
-            "query": {
-                "bool": {
-                    "should": [
-                        {
-                            "match_phrase_prefix": {
-                                "title.autocomplete": {
-                                    "query": query
-                                }
-                            }
-                        },
-                        {
-                            "match_phrase_prefix": {
-                                "question": {
-                                    "query": query
-                                }
-                            }
-                        }
-                    ]
-                }
-            }
-        },
-        "path": f"/{index}/_search",
-        "action": "native",
-        "method": "GET"
+        "action": "autocomplete",
+        "index": index,
+        "text": query,
+        "field": "suggest"
     }, es_server)
     return qfc.text_to_text(es_autocomplete, {})
 
@@ -221,7 +157,7 @@ def vectorize_query(query):
     }, oai_server)
     return qfc.text_to_text(oai_vectorize, {})['embeddings'][0]['embedding']
     
-def es_vector_search(embeddings, index='vector_data', field='vector'):
+def es_vector_search(embeddings, index='test_search', field='vector'):
     es_vector_request = Processor("elasticsearch", {
         "action": "vector",
         "field": field,
