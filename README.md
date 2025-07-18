@@ -1,6 +1,9 @@
 # Pureinsights Discovery Platform: Sandbox SDK 
 _Discovery Sandbox SDK_ is a Python package that allows developers to programatically access Discovery features. Currently, it supports executing one or multiple QueryFlow processors. 
 
+> [!IMPORTANT]
+> The current version of the Discovery Sandbox supports connections to internet-accessible services only. Support for local deployments is planned for an upcoming release.
+
 ## Requirements
 - Python 3.13+ 
 - `pip` 
