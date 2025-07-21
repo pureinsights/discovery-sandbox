@@ -9,12 +9,9 @@ _Discovery Sandbox SDK_ is a Python package that allows developers to programati
 - `pip` 
 
 ## Installation 
-To install the package, run `pip install` from the root folder:
 
 ```bash
-pip install -e .[dev]
-
-pip install -e . # To exclude test and development dependencies
+pip install discovery-sandbox
 ```
 
 ## Testing
