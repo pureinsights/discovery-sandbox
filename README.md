@@ -1,3 +1,24 @@
+# Pureinsights Discovery Platform
+ 
+Discovery Platform is an AI-powered search and data platform that connects search technologies with Large Language Models (LLMs) to build Retrieval Augmented Generation (RAG) applications, intelligent chatbots, and enterprise knowledge solutions.
+ 
+With Discovery, you can integrate leading search engines like Elasticsearch, Apache Solr, OpenSearch, and MongoDB Atlas Search with top LLM providers such as OpenAI, Hugging Face, and Amazon Bedrock.
+ 
+### Key capabilities:
+- Combine keyword search, semantic search, and vector search for smarter retrieval.
+- Build AI-driven search applications and context-aware chatbots.
+- Process and summarize content using state-of-the-art LLMs.
+- Deploy custom REST APIs for your search + AI workflows.
+
+### Use cases:
+- AI search engines.
+- RAG pipelines for domain-specific data.
+- Enterprise document search & insights.
+- Conversational AI with real-time data retrieval.
+- Automated content summarization & classification.
+ 
+With Discovery, you can go from raw data to AI-powered insights quickly, using tools you already know.
+
 # Pureinsights Discovery Platform: Sandbox SDK 
 _Discovery Sandbox SDK_ is a Python package that allows developers to programatically access Discovery features. Currently, it supports executing one or multiple QueryFlow processors. 
 
