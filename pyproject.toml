@@ -10,8 +10,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
-    "httpx",
-    "multimethod"
+    "httpx"
 ]
 
 [project.optional-dependencies]
