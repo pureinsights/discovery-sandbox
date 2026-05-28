@@ -237,3 +237,4 @@ class QueryFlowClient:
                 else:
                     data = content
         return data
+
