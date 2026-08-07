@@ -59,7 +59,6 @@ The SDK currently provides classes that represent Discovery entities (`Server`, 
 This client does the following: 
 
 - Provides methods to execute standalone QueryFlow processors using `text_to_text/text_to_stream` that return the JSON execution output as a dictionary or text stream respectively.
-- Supports overloading with the [multimethod](https://pypi.org/project/multimethod/) library to allow the usage of UUIDs instead of full entity objects.
 - Supports the execution of a sequence of processors using the `QueryFlowSequenceProcessor` and `QueryFlowSequence` classes and the `execute` method. 
 
 Currently, the SDK provides a `QueryFlowClient` class, that can be instanced with the base url of the QueryFlow instance and an API key.
