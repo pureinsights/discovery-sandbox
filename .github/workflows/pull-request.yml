@@ -32,7 +32,7 @@ jobs:
           pytest --verbose --cov=. --cov-report xml:coverage.xml
 
       - name: SonarCloud analysis for code changes
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v8.2.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
