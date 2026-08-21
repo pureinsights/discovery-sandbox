@@ -8,6 +8,11 @@ from httpx import HTTPStatusError
 from multimethod import multimethod
 
 
+class SandboxAPIError(Exception):
+    """Exception raised when the Sandbox API returns an error, including the API message."""
+    pass
+
+
 class Credential:
     """Credential to authenticate requests to a Server.
 
@@ -159,7 +164,14 @@ class QueryFlowClient:
 
         if response.status_code == 204:
             return {}
-        return response.raise_for_status().json()
+
+        try:
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            error_message = f"{e}\nError Details: {e.response.text}"
+            raise SandboxAPIError(error_message) from e
+
+        return response.json()
 
     @multimethod
     def text_to_text(self, processor_id: str, input: dict, timeout: str | None = None):
@@ -183,7 +195,14 @@ class QueryFlowClient:
 
         if response.status_code == 204:
             return {}
-        return response.raise_for_status().json()
+
+        try:
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            error_message = f"{e}\nError Details: {e.response.text}"
+            raise SandboxAPIError(error_message) from e
+
+        return response.json()
 
     @multimethod
     def text_to_stream(self, processor: Processor, input: dict, timeout: str = None):
@@ -217,6 +236,12 @@ class QueryFlowClient:
             },
             timeout=None,
         ) as response:
+            
+            if response.is_error:
+                response.read()
+                error_message = f"Client error '{response.status_code} {response.reason_phrase}' for url '{response.url}'\nError Details: {response.text}"
+                raise SandboxAPIError(error_message)
+
             for chunk in response.iter_text():
                 yield self._parse_data(chunk)
 
@@ -240,6 +265,12 @@ class QueryFlowClient:
             headers={"x-api-key": self.api_key, "Accept": "text/event-stream"},
             timeout=None,
         ) as response:
+            
+            if response.is_error:
+                response.read()
+                error_message = f"Client error '{response.status_code} {response.reason_phrase}' for url '{response.url}'\nError Details: {response.text}"
+                raise SandboxAPIError(error_message)
+
             for chunk in response.iter_text():
                 yield self._parse_data(chunk)
 
@@ -257,14 +288,12 @@ class QueryFlowClient:
             SystemExit: If the execution of any processor fails.
         """
         for queryflow_processor in sequence.processors:
-            try:
-                input_data = self.text_to_text(
-                    queryflow_processor.processor,
-                    input_data,
-                    queryflow_processor.timeout,
-                )
-            except HTTPStatusError as e:
-                sys.exit(e.response.text)
+            input_data = self.text_to_text(
+                queryflow_processor.processor,
+                input_data,
+                queryflow_processor.timeout,
+            )
+
         return input_data
 
     def _parse_data(self, event: str):
