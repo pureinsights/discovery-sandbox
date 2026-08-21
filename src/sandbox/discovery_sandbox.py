@@ -5,7 +5,6 @@ import json
 
 import httpx
 from httpx import HTTPStatusError
-from multimethod import multimethod
 
 
 class Credential:
@@ -75,15 +74,15 @@ class QueryFlowSequenceProcessor:
     """A processor to be executed as part of a QueryFlowSequence.
 
     Attributes:
-        processor (str | Processor): A Processor entity or UUID of an existing processor to execute.
+        processor (Processor): A Processor entity to execute.
         timeout (str):  The timeout parameter for the processor execution, in ISO 8601 format.
     """
 
-    def __init__(self, processor: str | Processor, timeout: str = None):
+    def __init__(self, processor: Processor, timeout: str = None):
         """Initialize the QueryFlowSequenceProcessor with processor and timeout.
 
         Args:
-            processor (str | Processor): A Processor entity or UUID of an existing processor to execute.
+            processor (Processor): A Processor entity to execute.
             timeout (str):  The timeout parameter for the processor execution, in ISO 8601 format.
         """
         self.processor = processor
@@ -127,7 +126,6 @@ class QueryFlowClient:
         self.url = url
         self.api_key = api_key
 
-    @multimethod
     def text_to_text(
         self, processor: Processor, input: dict, timeout: str | None = None
     ):
@@ -161,31 +159,6 @@ class QueryFlowClient:
             return {}
         return response.raise_for_status().json()
 
-    @multimethod
-    def text_to_text(self, processor_id: str, input: dict, timeout: str | None = None):
-        """Execute a processor by ID with the given input.
-
-        Args:
-            processor_id (str): The UUID of the processor to execute.
-            input (dict): The input to send to the processor.
-            timeout (str): The timeout parameter for the request, in ISO 8601 format.
-
-        Returns:
-            dict: The response data from the request.
-        """
-        response = httpx.post(
-            url=self.url + self.SANDBOX_PATH + processor_id,
-            params={"timeout": timeout} if timeout is not None else {},
-            json=input,
-            headers={"x-api-key": self.api_key},
-            timeout=None,
-        )
-
-        if response.status_code == 204:
-            return {}
-        return response.raise_for_status().json()
-
-    @multimethod
     def text_to_stream(self, processor: Processor, input: dict, timeout: str = None):
         """Execute a processor with the given input.
 
@@ -215,29 +188,6 @@ class QueryFlowClient:
                 "Content-Type": "application/json",
                 "Accept": "text/event-stream",
             },
-            timeout=None,
-        ) as response:
-            for chunk in response.iter_text():
-                yield self._parse_data(chunk)
-
-    @multimethod
-    def text_to_stream(self, processor_id: str, input: dict, timeout: str = None):
-        """Execute a processor by ID with the given input.
-
-        Args:
-            processor_id (str): The UUID of the processor to execute.
-            input (dict): The input to send to the processor.
-            timeout (str): The timeout parameter for the request, in ISO 8601 format.
-
-        Yields:
-            str: Each response chunk's data field as decoded text.
-        """
-        with httpx.stream(
-            "POST",
-            url=self.url + self.SANDBOX_PATH + processor_id,
-            params={"timeout": timeout} if timeout is not None else {},
-            json=input,
-            headers={"x-api-key": self.api_key, "Accept": "text/event-stream"},
             timeout=None,
         ) as response:
             for chunk in response.iter_text():
@@ -287,3 +237,4 @@ class QueryFlowClient:
                 else:
                     data = content
         return data
+

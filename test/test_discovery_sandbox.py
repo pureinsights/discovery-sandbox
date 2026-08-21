@@ -124,57 +124,6 @@ class TestQueryFlowClient:
         assert result == {}
         unstub()
 
-    def test_text_to_text_uuid(self, queryflow_client):
-        """Test the text_to_text method with the uuid of an existing Processor."""
-        processor_id = str(uuid.uuid4())
-        request_input = {
-            "".join(random.choices(string.ascii_letters, k=5)): "".join(
-                random.choices(string.ascii_letters, k=5)
-            )
-        }
-        response_data = {
-            "".join(random.choices(string.ascii_letters, k=5)): "".join(
-                random.choices(string.ascii_letters, k=5)
-            )
-        }
-        response = Response(200, content=json.dumps(response_data))
-        when(response).raise_for_status().thenReturn(response)
-
-        when(httpx).post(
-            url=queryflow_client.url + queryflow_client.SANDBOX_PATH + processor_id,
-            params={},
-            json=request_input,
-            headers={"x-api-key": queryflow_client.api_key},
-            timeout=None,
-        ).thenReturn(response)
-
-        result = queryflow_client.text_to_text(processor_id, request_input)
-        assert result == response_data
-        unstub()
-
-    def test_text_to_text_uuid_no_content(self, queryflow_client):
-        """Tests the text_to_text method with the uuid of a Processor that returns 204."""
-        processor_id = str(uuid.uuid4())
-        request_input = {
-            "".join(random.choices(string.ascii_letters, k=5)): "".join(
-                random.choices(string.ascii_letters, k=5)
-            )
-        }
-        response = Response(204)
-        when(response).raise_for_status().thenReturn(response)
-
-        when(httpx).post(
-            url=queryflow_client.url + queryflow_client.SANDBOX_PATH + processor_id,
-            params={},
-            json=request_input,
-            headers={"x-api-key": queryflow_client.api_key},
-            timeout=None,
-        ).thenReturn(response)
-
-        result = queryflow_client.text_to_text(processor_id, request_input)
-        assert result == {}
-        unstub()
-
     def test_text_to_stream_processor(self, queryflow_client):
         """Test the text_to_stream method with a new Processor entity."""
         credential_type = "".join(random.choices(string.ascii_letters, k=5))
@@ -237,43 +186,6 @@ class TestQueryFlowClient:
             when(queryflow_client)._parse_data(event).thenReturn(event)
 
         result = queryflow_client.text_to_stream(processor, request_input)
-        assert event_data == [chunk for chunk in result]
-        unstub()
-
-    def test_text_to_stream_uuid(self, queryflow_client):
-        """Test the text_to_stream method with the uuid of an existing Processor."""
-        processor_id = str(uuid.uuid4())
-        request_input = {
-            "".join(random.choices(string.ascii_letters, k=5)): "".join(
-                random.choices(string.ascii_letters, k=5)
-            )
-        }
-        event_data = [
-            "".join(random.choices(string.ascii_letters, k=5)) for _ in range(5)
-        ]
-
-        stream_mock = mock()
-        response = mock(Response)
-
-        when(response).iter_text().thenReturn(event_data)
-        when(stream_mock).__enter__().thenReturn(response)
-        when(stream_mock).__exit__().thenReturn()
-        when(httpx).stream(
-            "POST",
-            url=queryflow_client.url + queryflow_client.SANDBOX_PATH + processor_id,
-            params={},
-            json=request_input,
-            headers={
-                "x-api-key": queryflow_client.api_key,
-                "Accept": "text/event-stream",
-            },
-            timeout=None,
-        ).thenReturn(stream_mock)
-
-        for event in event_data:
-            when(queryflow_client)._parse_data(event).thenReturn(event)
-
-        result = queryflow_client.text_to_stream(processor_id, request_input)
         assert event_data == [chunk for chunk in result]
         unstub()
 
