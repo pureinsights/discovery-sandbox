@@ -234,11 +234,10 @@ class TestQueryFlowClient:
             api_error
         )
 
+        queryflow_sequence = QueryFlowSequence([QueryFlowSequenceProcessor(processor)])
+        
         with pytest.raises(SandboxAPIError) as excinfo:
-            queryflow_client.execute(
-                QueryFlowSequence([QueryFlowSequenceProcessor(processor)]),
-                request_input,
-            )
+            queryflow_client.execute(queryflow_sequence, request_input)
 
         assert "Error details" in str(excinfo.value)
         unstub()
@@ -302,8 +301,10 @@ class TestQueryFlowClient:
         when(stream_mock).__exit__().thenReturn()
         when(httpx).stream(...).thenReturn(stream_mock)
 
+        stream_generator = queryflow_client.text_to_stream(processor, request_input)
+        
         with pytest.raises(SandboxAPIError) as excinfo:
-            list(queryflow_client.text_to_stream(processor, request_input))
+            list(stream_generator)
 
         assert error_body in str(excinfo.value)
         unstub()
