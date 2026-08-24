@@ -17,6 +17,7 @@ from sandbox.discovery_sandbox import (
     QueryFlowSequence,
     QueryFlowSequenceProcessor,
     Server,
+    SandboxAPIError
 )
 
 
@@ -165,6 +166,7 @@ class TestQueryFlowClient:
 
         stream_mock = mock()
         response = mock(Response)
+        response.is_error = False
 
         when(response).iter_text().thenReturn(event_data)
         when(stream_mock).__enter__().thenReturn(response)
@@ -217,33 +219,28 @@ class TestQueryFlowClient:
         assert output == queryflow_client.execute(queryflow_sequence, original_input)
         unstub()
 
-    def test_execute_system_exit(self, queryflow_client):
-        """Tests the execute method when a processor execution fails."""
+    def test_execute_sandbox_api_error(self, queryflow_client):
+        """Tests the execute method propagates SandboxAPIError when a processor fails."""
         request_input = {
             "".join(random.choices(string.ascii_letters, k=5)): "".join(
                 random.choices(string.ascii_letters, k=5)
             )
         }
 
-        response_text = "".join(random.choices(string.ascii_letters, k=5))
         processor = mock(Processor)
-        response = mock(Response)
-        status_error = HTTPStatusError(response=response, message="", request=None)
-
-        response.text = response_text
-        status_error.response = response
+        api_error = SandboxAPIError("Error details")
 
         when(queryflow_client).text_to_text(processor, request_input, None).thenRaise(
-            status_error
+            api_error
         )
 
-        with pytest.raises(SystemExit) as excinfo:
+        with pytest.raises(SandboxAPIError) as excinfo:
             queryflow_client.execute(
                 QueryFlowSequence([QueryFlowSequenceProcessor(processor)]),
                 request_input,
             )
 
-        assert response_text == excinfo.value.code
+        assert "Error details" in str(excinfo.value)
         unstub()
 
     def test_parse_data(self, queryflow_client):
@@ -253,3 +250,60 @@ class TestQueryFlowClient:
         ]
         event_text = "\n".join(["data: " + content for content in event_data])
         assert "\n".join(event_data) == queryflow_client._parse_data(event_text)
+
+
+    def test_text_to_text_processor_error(self, queryflow_client):
+        """Test text_to_text raises SandboxAPIError with API details on failure."""
+        processor = Processor(
+            type="".join(random.choices(string.ascii_letters, k=5)),
+            config={},
+        )
+        request_input = {"key": "value"}
+        error_body = '{"messages": ["Evaluation error"]}'
+        
+        response = mock(Response)
+        response.status_code = 422
+        response.text = error_body
+        
+        status_error = HTTPStatusError(
+            message="Client error '422'",
+            request=mock(),
+            response=response,
+        )
+        
+        when(response).raise_for_status().thenRaise(status_error)
+        when(httpx).post(...).thenReturn(response)
+
+        with pytest.raises(SandboxAPIError) as excinfo:
+            queryflow_client.text_to_text(processor, request_input)
+
+        assert error_body in str(excinfo.value)
+        unstub()
+
+    def test_text_to_stream_processor_error(self, queryflow_client):
+        """Test text_to_stream raises SandboxAPIError when stream returns an error."""
+        processor = Processor(
+            type="".join(random.choices(string.ascii_letters, k=5)),
+            config={},
+        )
+        request_input = {"key": "value"}
+        error_body = '{"error": "Stream failed"}'
+
+        stream_mock = mock()
+        response = mock(Response)
+        response.is_error = True
+        response.status_code = 400
+        response.reason_phrase = "Bad Request"
+        response.url = "http://mock-url"
+        response.text = error_body
+
+        when(response).read().thenReturn(b"")
+        when(stream_mock).__enter__().thenReturn(response)
+        when(stream_mock).__exit__().thenReturn()
+        when(httpx).stream(...).thenReturn(stream_mock)
+
+        with pytest.raises(SandboxAPIError) as excinfo:
+            list(queryflow_client.text_to_stream(processor, request_input))
+
+        assert error_body in str(excinfo.value)
+        unstub()
