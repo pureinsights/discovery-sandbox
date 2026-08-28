@@ -219,14 +219,11 @@ class QueryFlowClient:
             HTTPStatusError: If the execution of any processor fails.
         """
         for queryflow_processor in sequence.processors:
-            try:
-                input_data = self.text_to_text(
-                    queryflow_processor.processor,
-                    input_data,
-                    queryflow_processor.timeout,
-                )
-            except HTTPStatusError:
-                raise
+            input_data = self.text_to_text(
+                queryflow_processor.processor,
+                input_data,
+                queryflow_processor.timeout,
+            )
 
         return input_data
 
