@@ -1,15 +1,9 @@
 """Entity class definitions for the Sandbox SDK."""
 
-import sys
 import json
 
 import httpx
 from httpx import HTTPStatusError
-
-
-class SandboxAPIError(Exception):
-    """Exception raised when the Sandbox API returns an error, including the API message."""
-    pass
 
 
 class Credential:
@@ -167,7 +161,7 @@ class QueryFlowClient:
             response.raise_for_status()
         except HTTPStatusError as e:
             error_message = f"{e}\nError Details: {e.response.text}"
-            raise SandboxAPIError(error_message) from e
+            raise HTTPStatusError(error_message, request=e.request, response=e.response) from None
 
         return response.json()
 
@@ -206,7 +200,7 @@ class QueryFlowClient:
             if response.is_error:
                 response.read()
                 error_message = f"Client error '{response.status_code} {response.reason_phrase}' for url '{response.url}'\nError Details: {response.text}"
-                raise SandboxAPIError(error_message)
+                raise HTTPStatusError(error_message, request=response.request, response=response)
 
             for chunk in response.iter_text():
                 yield self._parse_data(chunk)
@@ -222,14 +216,17 @@ class QueryFlowClient:
             dict: The final response data from the sequence execution.
 
         Raises:
-            SystemExit: If the execution of any processor fails.
+            HTTPStatusError: If the execution of any processor fails.
         """
         for queryflow_processor in sequence.processors:
-            input_data = self.text_to_text(
-                queryflow_processor.processor,
-                input_data,
-                queryflow_processor.timeout,
-            )
+            try:
+                input_data = self.text_to_text(
+                    queryflow_processor.processor,
+                    input_data,
+                    queryflow_processor.timeout,
+                )
+            except HTTPStatusError:
+                raise
 
         return input_data
 

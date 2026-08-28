@@ -16,8 +16,7 @@ from sandbox.discovery_sandbox import (
     QueryFlowClient,
     QueryFlowSequence,
     QueryFlowSequenceProcessor,
-    Server,
-    SandboxAPIError
+    Server
 )
 
 
@@ -219,8 +218,8 @@ class TestQueryFlowClient:
         assert output == queryflow_client.execute(queryflow_sequence, original_input)
         unstub()
 
-    def test_execute_sandbox_api_error(self, queryflow_client):
-        """Tests the execute method propagates SandboxAPIError when a processor fails."""
+    def test_execute_api_error(self, queryflow_client):
+        """Tests the execute method propagates HTTPStatusError when a processor fails."""
         request_input = {
             "".join(random.choices(string.ascii_letters, k=5)): "".join(
                 random.choices(string.ascii_letters, k=5)
@@ -228,7 +227,10 @@ class TestQueryFlowClient:
         }
 
         processor = mock(Processor)
-        api_error = SandboxAPIError("Error details")
+        mock_request = mock()
+        mock_response = mock()
+        
+        api_error = HTTPStatusError("Error details", request=mock_request, response=mock_response)
 
         when(queryflow_client).text_to_text(processor, request_input, None).thenRaise(
             api_error
@@ -236,7 +238,7 @@ class TestQueryFlowClient:
 
         queryflow_sequence = QueryFlowSequence([QueryFlowSequenceProcessor(processor)])
         
-        with pytest.raises(SandboxAPIError) as excinfo:
+        with pytest.raises(HTTPStatusError) as excinfo:
             queryflow_client.execute(queryflow_sequence, request_input)
 
         assert "Error details" in str(excinfo.value)
@@ -252,7 +254,7 @@ class TestQueryFlowClient:
 
 
     def test_text_to_text_processor_error(self, queryflow_client):
-        """Test text_to_text raises SandboxAPIError with API details on failure."""
+        """Test text_to_text raises HTTPStatusError with API details on failure."""
         processor = Processor(
             type="".join(random.choices(string.ascii_letters, k=5)),
             config={},
@@ -273,14 +275,14 @@ class TestQueryFlowClient:
         when(response).raise_for_status().thenRaise(status_error)
         when(httpx).post(...).thenReturn(response)
 
-        with pytest.raises(SandboxAPIError) as excinfo:
+        with pytest.raises(HTTPStatusError) as excinfo:
             queryflow_client.text_to_text(processor, request_input)
 
         assert error_body in str(excinfo.value)
         unstub()
 
     def test_text_to_stream_processor_error(self, queryflow_client):
-        """Test text_to_stream raises SandboxAPIError when stream returns an error."""
+        """Test text_to_stream raises HTTPStatusError when stream returns an error."""
         processor = Processor(
             type="".join(random.choices(string.ascii_letters, k=5)),
             config={},
@@ -296,6 +298,8 @@ class TestQueryFlowClient:
         response.url = "http://mock-url"
         response.text = error_body
 
+        response.request = mock()
+
         when(response).read().thenReturn(b"")
         when(stream_mock).__enter__().thenReturn(response)
         when(stream_mock).__exit__().thenReturn()
@@ -303,7 +307,7 @@ class TestQueryFlowClient:
 
         stream_generator = queryflow_client.text_to_stream(processor, request_input)
         
-        with pytest.raises(SandboxAPIError) as excinfo:
+        with pytest.raises(HTTPStatusError) as excinfo:
             list(stream_generator)
 
         assert error_body in str(excinfo.value)
