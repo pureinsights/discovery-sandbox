@@ -137,7 +137,11 @@ class QueryFlowClient:
 
         Returns:
             dict: The response data from the request.
+
+        Raises:
+            HTTPStatusError: If the API request fails, containing the status code and Sandbox API error details.
         """
+
         request_data = json.dumps(
             {
                 "processor": processor,
@@ -175,7 +179,11 @@ class QueryFlowClient:
 
         Yields:
             str: Each response chunk's data field as decoded text.
+            
+        Raises:
+            HTTPStatusError: If the API request fails, containing the status code and Sandbox API error details.
         """
+
         request_data = json.dumps(
             {
                 "processor": processor,
@@ -196,7 +204,7 @@ class QueryFlowClient:
             },
             timeout=None,
         ) as response:
-            
+
             if response.is_error:
                 response.read()
                 error_message = f"Client error '{response.status_code} {response.reason_phrase}' for url '{response.url}'\nError Details: {response.text}"
@@ -247,4 +255,3 @@ class QueryFlowClient:
                 else:
                     data = content
         return data
-
