@@ -207,7 +207,7 @@ class TestQueryFlowClient:
                 )
             }
             when(queryflow_client).text_to_text(
-                processor, current_input, None
+                processor, current_input, None, None
             ).thenReturn(output)
             current_input = output
 
@@ -232,7 +232,7 @@ class TestQueryFlowClient:
         
         api_error = HTTPStatusError("Error details", request=mock_request, response=mock_response)
 
-        when(queryflow_client).text_to_text(processor, request_input, None).thenRaise(
+        when(queryflow_client).text_to_text(processor, request_input, None, None).thenRaise(
             api_error
         )
 
@@ -311,4 +311,72 @@ class TestQueryFlowClient:
             list(stream_generator)
 
         assert error_body in str(excinfo.value)
+        unstub()
+
+    def test_text_to_text_processor_with_properties(self, queryflow_client):
+        """Test the text_to_text method injecting properties."""
+        processor = Processor("test_type", {"key": "value"})
+        request_input = {"input_key": "input_val"}
+        properties = {"endpoint": {"properties": {"my-property": "my-value"}}}
+        
+        request_data = json.dumps(
+            {"processor": processor, "input": request_input, "properties": properties},
+            default=vars,
+        )
+        response_data = {"result": "success"}
+        response = Response(200, content=json.dumps(response_data))
+
+        when(response).raise_for_status().thenReturn(response)
+        when(httpx).post(
+            url=queryflow_client.url + queryflow_client.SANDBOX_PATH,
+            params={},
+            content=request_data,
+            headers={
+                "x-api-key": queryflow_client.api_key,
+                "Content-Type": "application/json",
+            },
+            timeout=None,
+        ).thenReturn(response)
+
+        result = queryflow_client.text_to_text(processor, request_input, properties=properties)
+        assert result == response_data
+        unstub()
+
+    def test_text_to_stream_processor_with_properties(self, queryflow_client):
+        """Test the text_to_stream method injecting properties."""
+        processor = Processor("test_type", {"key": "value"})
+        request_input = {"input_key": "input_val"}
+        properties = {"endpoint": {"properties": {"my-property": "my-value"}}}
+        
+        request_data = json.dumps(
+            {"processor": processor, "input": request_input, "properties": properties},
+            default=vars,
+        )
+        event_data = ["chunk1", "chunk2"]
+
+        stream_mock = mock()
+        response = mock(Response)
+        response.is_error = False
+
+        when(response).iter_text().thenReturn(event_data)
+        when(stream_mock).__enter__().thenReturn(response)
+        when(stream_mock).__exit__().thenReturn()
+        when(httpx).stream(
+            "POST",
+            url=queryflow_client.url + queryflow_client.SANDBOX_PATH,
+            params={},
+            content=request_data,
+            headers={
+                "x-api-key": queryflow_client.api_key,
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+            timeout=None,
+        ).thenReturn(stream_mock)
+
+        for event in event_data:
+            when(queryflow_client)._parse_data(event).thenReturn(event)
+
+        result = queryflow_client.text_to_stream(processor, request_input, properties=properties)
+        assert event_data == [chunk for chunk in result]
         unstub()
