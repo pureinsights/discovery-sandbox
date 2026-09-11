@@ -16,7 +16,7 @@ from sandbox.discovery_sandbox import (
     QueryFlowClient,
     QueryFlowSequence,
     QueryFlowSequenceProcessor,
-    Server,
+    Server
 )
 
 
@@ -165,6 +165,7 @@ class TestQueryFlowClient:
 
         stream_mock = mock()
         response = mock(Response)
+        response.is_error = False
 
         when(response).iter_text().thenReturn(event_data)
         when(stream_mock).__enter__().thenReturn(response)
@@ -206,7 +207,7 @@ class TestQueryFlowClient:
                 )
             }
             when(queryflow_client).text_to_text(
-                processor, current_input, None
+                processor, current_input, None, None
             ).thenReturn(output)
             current_input = output
 
@@ -217,33 +218,30 @@ class TestQueryFlowClient:
         assert output == queryflow_client.execute(queryflow_sequence, original_input)
         unstub()
 
-    def test_execute_system_exit(self, queryflow_client):
-        """Tests the execute method when a processor execution fails."""
+    def test_execute_api_error(self, queryflow_client):
+        """Tests the execute method propagates HTTPStatusError when a processor fails."""
         request_input = {
             "".join(random.choices(string.ascii_letters, k=5)): "".join(
                 random.choices(string.ascii_letters, k=5)
             )
         }
 
-        response_text = "".join(random.choices(string.ascii_letters, k=5))
         processor = mock(Processor)
-        response = mock(Response)
-        status_error = HTTPStatusError(response=response, message="", request=None)
+        mock_request = mock()
+        mock_response = mock()
+        
+        api_error = HTTPStatusError("Error details", request=mock_request, response=mock_response)
 
-        response.text = response_text
-        status_error.response = response
-
-        when(queryflow_client).text_to_text(processor, request_input, None).thenRaise(
-            status_error
+        when(queryflow_client).text_to_text(processor, request_input, None, None).thenRaise(
+            api_error
         )
 
-        with pytest.raises(SystemExit) as excinfo:
-            queryflow_client.execute(
-                QueryFlowSequence([QueryFlowSequenceProcessor(processor)]),
-                request_input,
-            )
+        queryflow_sequence = QueryFlowSequence([QueryFlowSequenceProcessor(processor)])
+        
+        with pytest.raises(HTTPStatusError) as excinfo:
+            queryflow_client.execute(queryflow_sequence, request_input)
 
-        assert response_text == excinfo.value.code
+        assert "Error details" in str(excinfo.value)
         unstub()
 
     def test_parse_data(self, queryflow_client):
@@ -253,3 +251,132 @@ class TestQueryFlowClient:
         ]
         event_text = "\n".join(["data: " + content for content in event_data])
         assert "\n".join(event_data) == queryflow_client._parse_data(event_text)
+
+
+    def test_text_to_text_processor_error(self, queryflow_client):
+        """Test text_to_text raises HTTPStatusError with API details on failure."""
+        processor = Processor(
+            type="".join(random.choices(string.ascii_letters, k=5)),
+            config={},
+        )
+        request_input = {"key": "value"}
+        error_body = '{"messages": ["Evaluation error"]}'
+        
+        response = mock(Response)
+        response.status_code = 422
+        response.text = error_body
+        
+        status_error = HTTPStatusError(
+            message="Client error '422'",
+            request=mock(),
+            response=response,
+        )
+        
+        when(response).raise_for_status().thenRaise(status_error)
+        when(httpx).post(...).thenReturn(response)
+
+        with pytest.raises(HTTPStatusError) as excinfo:
+            queryflow_client.text_to_text(processor, request_input)
+
+        assert error_body in str(excinfo.value)
+        unstub()
+
+    def test_text_to_stream_processor_error(self, queryflow_client):
+        """Test text_to_stream raises HTTPStatusError when stream returns an error."""
+        processor = Processor(
+            type="".join(random.choices(string.ascii_letters, k=5)),
+            config={},
+        )
+        request_input = {"key": "value"}
+        error_body = '{"error": "Stream failed"}'
+
+        stream_mock = mock()
+        response = mock(Response)
+        response.is_error = True
+        response.status_code = 400
+        response.reason_phrase = "Bad Request"
+        response.url = "http://mock-url"
+        response.text = error_body
+
+        response.request = mock()
+
+        when(response).read().thenReturn(b"")
+        when(stream_mock).__enter__().thenReturn(response)
+        when(stream_mock).__exit__().thenReturn()
+        when(httpx).stream(...).thenReturn(stream_mock)
+
+        stream_generator = queryflow_client.text_to_stream(processor, request_input)
+        
+        with pytest.raises(HTTPStatusError) as excinfo:
+            list(stream_generator)
+
+        assert error_body in str(excinfo.value)
+        unstub()
+
+    def test_text_to_text_processor_with_properties(self, queryflow_client):
+        """Test the text_to_text method injecting properties."""
+        processor = Processor("test_type", {"key": "value"})
+        request_input = {"input_key": "input_val"}
+        properties = {"endpoint": {"properties": {"my-property": "my-value"}}}
+        
+        request_data = json.dumps(
+            {"processor": processor, "input": request_input, "properties": properties},
+            default=vars,
+        )
+        response_data = {"result": "success"}
+        response = Response(200, content=json.dumps(response_data))
+
+        when(response).raise_for_status().thenReturn(response)
+        when(httpx).post(
+            url=queryflow_client.url + queryflow_client.SANDBOX_PATH,
+            params={},
+            content=request_data,
+            headers={
+                "x-api-key": queryflow_client.api_key,
+                "Content-Type": "application/json",
+            },
+            timeout=None,
+        ).thenReturn(response)
+
+        result = queryflow_client.text_to_text(processor, request_input, properties=properties)
+        assert result == response_data
+        unstub()
+
+    def test_text_to_stream_processor_with_properties(self, queryflow_client):
+        """Test the text_to_stream method injecting properties."""
+        processor = Processor("test_type", {"key": "value"})
+        request_input = {"input_key": "input_val"}
+        properties = {"endpoint": {"properties": {"my-property": "my-value"}}}
+        
+        request_data = json.dumps(
+            {"processor": processor, "input": request_input, "properties": properties},
+            default=vars,
+        )
+        event_data = ["chunk1", "chunk2"]
+
+        stream_mock = mock()
+        response = mock(Response)
+        response.is_error = False
+
+        when(response).iter_text().thenReturn(event_data)
+        when(stream_mock).__enter__().thenReturn(response)
+        when(stream_mock).__exit__().thenReturn()
+        when(httpx).stream(
+            "POST",
+            url=queryflow_client.url + queryflow_client.SANDBOX_PATH,
+            params={},
+            content=request_data,
+            headers={
+                "x-api-key": queryflow_client.api_key,
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream",
+            },
+            timeout=None,
+        ).thenReturn(stream_mock)
+
+        for event in event_data:
+            when(queryflow_client)._parse_data(event).thenReturn(event)
+
+        result = queryflow_client.text_to_stream(processor, request_input, properties=properties)
+        assert event_data == [chunk for chunk in result]
+        unstub()

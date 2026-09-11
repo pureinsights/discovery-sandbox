@@ -1,6 +1,5 @@
 """Entity class definitions for the Sandbox SDK."""
 
-import sys
 import json
 
 import httpx
@@ -126,26 +125,30 @@ class QueryFlowClient:
         self.url = url
         self.api_key = api_key
 
-    def text_to_text(
-        self, processor: Processor, input: dict, timeout: str | None = None
-    ):
-        """Execute a processor with the given input.
+    def text_to_text(self, processor: Processor, input: dict, timeout: str | None = None, properties: dict | None = None):
+        """Execute a processor with the given input and optional properties.
 
         Args:
             processor (Processor): The processor to execute.
             input (dict): The input to send to the processor.
             timeout (str): The timeout parameter for the request, in ISO 8601 format.
+            properties (dict): Optional properties to inject into the processor execution.
 
         Returns:
             dict: The response data from the request.
+
+        Raises:
+            HTTPStatusError: If the API request fails, containing the status code and Sandbox API error details.
         """
-        request_data = json.dumps(
-            {
-                "processor": processor,
-                "input": input,
-            },
-            default=vars,
-        )
+
+        payload = {
+            "processor": processor,
+            "input": input,
+        }
+        if properties is not None:
+            payload["properties"] = properties
+
+        request_data = json.dumps(payload, default=vars)
 
         response = httpx.post(
             url=self.url + self.SANDBOX_PATH,
@@ -157,26 +160,39 @@ class QueryFlowClient:
 
         if response.status_code == 204:
             return {}
-        return response.raise_for_status().json()
 
-    def text_to_stream(self, processor: Processor, input: dict, timeout: str = None):
-        """Execute a processor with the given input.
+        try:
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            error_message = f"{e}\nError Details: {e.response.text}"
+            raise HTTPStatusError(error_message, request=e.request, response=e.response) from None
+
+        return response.json()
+
+    def text_to_stream(self, processor: Processor, input: dict, timeout: str = None, properties: dict | None = None):
+        """Execute a processor with the given input and optional properties.
 
         Args:
             processor (Processor): The processor to execute.
             input (dict): The input to send to the processor.
             timeout (str): The timeout parameter for the request, in ISO 8601 format.
+            properties (dict): Optional properties to inject into the processor execution.
 
         Yields:
             str: Each response chunk's data field as decoded text.
+            
+        Raises:
+            HTTPStatusError: If the API request fails, containing the status code and Sandbox API error details.
         """
-        request_data = json.dumps(
-            {
-                "processor": processor,
-                "input": input,
-            },
-            default=vars,
-        )
+
+        payload = {
+            "processor": processor,
+            "input": input,
+        }
+        if properties is not None:
+            payload["properties"] = properties
+
+        request_data = json.dumps(payload, default=vars)
 
         with httpx.stream(
             "POST",
@@ -190,31 +206,37 @@ class QueryFlowClient:
             },
             timeout=None,
         ) as response:
+            
+            if response.is_error:
+                response.read()
+                error_message = f"Client error '{response.status_code} {response.reason_phrase}' for url '{response.url}'\nError Details: {response.text}"
+                raise HTTPStatusError(error_message, request=response.request, response=response)
+
             for chunk in response.iter_text():
                 yield self._parse_data(chunk)
 
-    def execute(self, sequence: QueryFlowSequence, input_data: dict):
+    def execute(self, sequence: QueryFlowSequence, input_data: dict, properties: dict | None = None):
         """Executes a QueryFlow processor sequence.
 
         Args:
             sequence (QueryFlowSequence): The sequence of QueryFlowSequenceProcessors to execute.
             input_data (dict): The initial input with which to start the execution.
+            properties (dict): Optional properties to inject into the processor execution.
 
         Returns:
             dict: The final response data from the sequence execution.
 
         Raises:
-            SystemExit: If the execution of any processor fails.
+            HTTPStatusError: If the execution of any processor fails.
         """
         for queryflow_processor in sequence.processors:
-            try:
-                input_data = self.text_to_text(
-                    queryflow_processor.processor,
-                    input_data,
-                    queryflow_processor.timeout,
-                )
-            except HTTPStatusError as e:
-                sys.exit(e.response.text)
+            input_data = self.text_to_text(
+                queryflow_processor.processor,
+                input_data,
+                queryflow_processor.timeout,
+                properties
+            )
+
         return input_data
 
     def _parse_data(self, event: str):
@@ -237,4 +259,3 @@ class QueryFlowClient:
                 else:
                     data = content
         return data
-
