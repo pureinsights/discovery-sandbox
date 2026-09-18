@@ -1,6 +1,5 @@
 """Entity class definitions for the Sandbox SDK."""
 
-import sys
 import json
 
 import httpx
@@ -138,7 +137,11 @@ class QueryFlowClient:
 
         Returns:
             dict: The response data from the request.
+
+        Raises:
+            HTTPStatusError: If the API request fails, containing the status code and Sandbox API error details.
         """
+
         request_data = json.dumps(
             {
                 "processor": processor,
@@ -157,7 +160,14 @@ class QueryFlowClient:
 
         if response.status_code == 204:
             return {}
-        return response.raise_for_status().json()
+
+        try:
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            error_message = f"{e}\nError Details: {e.response.text}"
+            raise HTTPStatusError(error_message, request=e.request, response=e.response) from None
+
+        return response.json()
 
     def text_to_stream(self, processor: Processor, input: dict, timeout: str = None):
         """Execute a processor with the given input.
@@ -169,7 +179,11 @@ class QueryFlowClient:
 
         Yields:
             str: Each response chunk's data field as decoded text.
+            
+        Raises:
+            HTTPStatusError: If the API request fails, containing the status code and Sandbox API error details.
         """
+
         request_data = json.dumps(
             {
                 "processor": processor,
@@ -190,6 +204,12 @@ class QueryFlowClient:
             },
             timeout=None,
         ) as response:
+
+            if response.is_error:
+                response.read()
+                error_message = f"Client error '{response.status_code} {response.reason_phrase}' for url '{response.url}'\nError Details: {response.text}"
+                raise HTTPStatusError(error_message, request=response.request, response=response)
+
             for chunk in response.iter_text():
                 yield self._parse_data(chunk)
 
@@ -204,17 +224,15 @@ class QueryFlowClient:
             dict: The final response data from the sequence execution.
 
         Raises:
-            SystemExit: If the execution of any processor fails.
+            HTTPStatusError: If the execution of any processor fails.
         """
         for queryflow_processor in sequence.processors:
-            try:
-                input_data = self.text_to_text(
-                    queryflow_processor.processor,
-                    input_data,
-                    queryflow_processor.timeout,
-                )
-            except HTTPStatusError as e:
-                sys.exit(e.response.text)
+            input_data = self.text_to_text(
+                queryflow_processor.processor,
+                input_data,
+                queryflow_processor.timeout,
+            )
+
         return input_data
 
     def _parse_data(self, event: str):
@@ -237,4 +255,3 @@ class QueryFlowClient:
                 else:
                     data = content
         return data
-
