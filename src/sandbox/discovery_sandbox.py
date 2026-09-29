@@ -206,7 +206,6 @@ class QueryFlowClient:
             },
             timeout=None,
         ) as response:
-            
             if response.is_error:
                 response.read()
                 error_message = f"Client error '{response.status_code} {response.reason_phrase}' for url '{response.url}'\nError Details: {response.text}"
