@@ -125,14 +125,14 @@ class QueryFlowClient:
         self.url = url
         self.api_key = api_key
 
-    def text_to_text(self, processor: Processor, input: dict, timeout: str | None = None, properties: dict | None = None):
+    def text_to_text(self, processor: Processor, input: dict, properties: dict | None = None, timeout: str | None = None):
         """Execute a processor with the given input and optional properties.
 
         Args:
             processor (Processor): The processor to execute.
             input (dict): The input to send to the processor.
-            timeout (str): The timeout parameter for the request, in ISO 8601 format.
             properties (dict): Optional properties to inject into the processor execution.
+            timeout (str): The timeout parameter for the request, in ISO 8601 format.
 
         Returns:
             dict: The response data from the request.
@@ -169,14 +169,14 @@ class QueryFlowClient:
 
         return response.json()
 
-    def text_to_stream(self, processor: Processor, input: dict, timeout: str = None, properties: dict | None = None):
+    def text_to_stream(self, processor: Processor, input: dict, properties: dict | None = None, timeout: str = None):
         """Execute a processor with the given input and optional properties.
 
         Args:
             processor (Processor): The processor to execute.
             input (dict): The input to send to the processor.
-            timeout (str): The timeout parameter for the request, in ISO 8601 format.
             properties (dict): Optional properties to inject into the processor execution.
+            timeout (str): The timeout parameter for the request, in ISO 8601 format.
 
         Yields:
             str: Each response chunk's data field as decoded text.
@@ -232,8 +232,8 @@ class QueryFlowClient:
             input_data = self.text_to_text(
                 queryflow_processor.processor,
                 input_data,
+                properties,
                 queryflow_processor.timeout,
-                properties
             )
 
         return input_data
