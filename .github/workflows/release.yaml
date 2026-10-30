@@ -1,7 +1,9 @@
 name: Release
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - feature/release-workflow
   pull_request:
     types:
       - closed
