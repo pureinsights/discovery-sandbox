@@ -19,3 +19,6 @@ dev = [
     "pytest",
     "pytest-cov"
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
