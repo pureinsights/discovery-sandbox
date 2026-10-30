@@ -43,7 +43,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: ${{ secrets.PYPI_USERNAME }}
+      name: ${{ vars.PYPI_USERNAME }}
       url: https://test.pypi.org/p/discovery-sandbox
     steps:
       - name: Download distributions
